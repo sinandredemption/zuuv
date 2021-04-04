@@ -7,6 +7,7 @@ Zuuv is a program that can compute the [regular continued fraction](https://en.w
 * Ability to utilize hard-disk to perform extremely large calculations
 * Ability to automatically save and resume partially computations
 * Basic multi-threading
+
 With enough dedication, Zuuv can be utilized to break world records for computation of regular continued fraction terms of important mathematical constants such as Pi, Euler-Mascheroni etc, even on regular PCs.
 
 ## Installation
