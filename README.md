@@ -10,8 +10,8 @@ Zuuv is a program that can compute the [regular continued fraction](https://en.w
 With enough dedication, Zuuv can be utilized to break world records for computation of regular continued fraction terms of important mathematical constants such as Pi, Euler-Mascheroni etc, even on regular PCs.
 
 ## Installation
-Windows build:
-Linux build:
+Windows builds can be found in the `builds` directory. The Windows builds require the provided dll-file `mpir.dll` to be placed in the same folder as the executable.
+### Note on performance
 The program requires a minimum of four threads to run efficiently. I haven't personally tested it on a dual-core setup, but I would expect performance issues.
 After downloading, to check if everything is alright, do a quick continuant benchmark (option 4) to see if everything is running fine.
 
