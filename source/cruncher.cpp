@@ -21,7 +21,7 @@ void basecase_reg_cf_terms(const mpz_class& num, const mpz_class& den, CFTerms& 
 		if (!r.fits_ui_p()) throw "Unusually large convergent";
 
 		out.push_back(r.get_ui());
-		mpz_submul_ui(n->get_mpz_t(), d->get_mpz_t(), r.get_ui());
+		mpz_submul(n->get_mpz_t(), d->get_mpz_t(), r.get_mpz_t());
 
 		if (half && *n < s) break;
 
@@ -327,8 +327,9 @@ void crunch_reg_cf_terms_on_disk(std::string file, size_t terms, size_t bytes_pe
 
 
 			std::cerr.precision(4);
-			std::cerr << "\t" << int(wall_clock() - t) << "ms (den, \t"
-				<< (bytes_per_file * nfiles) / (1024. * 1024.) << "MB/s)...";
+			double end_t = wall_clock() - t;
+			std::cerr << "\t" << int(end_t) << "ms (den, \t"
+				<< (bytes_per_file * nfiles) / (1024. * 1.024 * end_t) << "MB/s)...";
 
 			nfiles = frac.get_den().files();
 
@@ -338,9 +339,10 @@ void crunch_reg_cf_terms_on_disk(std::string file, size_t terms, size_t bytes_pe
 				frac.get_num(), convergents.q_k, frac.get_den(), convergents.p_k)
 			: disk_mpz::mt_cross_mult_sub("corr_den", bytes_per_file, nthreads,
 				frac.get_num(), convergents.q_k, frac.get_den(), convergents.p_k));
+			end_t = wall_clock() - t;
 
-			std::cerr << "\t" << int(wall_clock() - t) << "ms (num, \t"
-				<< (bytes_per_file * nfiles) / (1024. * 1024.) << "MB/s)...";
+			std::cerr << "\t" << int(end_t) << "ms (num, \t"
+				<< (bytes_per_file * nfiles) / (1024. * 1.024 * end_t) << "MB/s)...";
 
 			if (c_num.sign() < 0 && c_den.sign() < 0) {
 				c_num.set_pos(); c_den.set_pos();

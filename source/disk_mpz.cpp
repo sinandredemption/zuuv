@@ -373,6 +373,7 @@ disk_mpz::~disk_mpz()
 {
 }
 
+// FIXME Just rename the files
 void disk_mpz_move(disk_mpz& to, disk_mpz& from)
 {
   // Delete all files in 'to'
