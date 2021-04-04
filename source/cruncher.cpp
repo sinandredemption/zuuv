@@ -121,7 +121,8 @@ CFTermList reg_cf_terms(const mpz_class& num, const mpz_class& den, bool calc_co
 	CFTermList lowerhalf_cf_terms;
 
 	if (half) {
-		reduction_size = std::min(mpz_size(correction_num.get_mpz_t()), mpz_size(correction_den.get_mpz_t()));	// Reduction size
+		reduction_size = std::min(mpz_size(correction_num.get_mpz_t()),
+			mpz_size(correction_den.get_mpz_t()));	// Reduction size
 
 		if (mpz_size(correction_num.get_mpz_t()) < Params::ThresholdReduc1)
 			reduction_size /= 2;
@@ -141,7 +142,8 @@ CFTermList reg_cf_terms(const mpz_class& num, const mpz_class& den, bool calc_co
 	if (calc_convergents && !upperhalf_cf_terms.updated)
 		upperhalf_cf_terms.update(corrections == 1);
 
-	upperhalf_cf_terms.list.insert(upperhalf_cf_terms.list.end(), lowerhalf_cf_terms.list.begin(), lowerhalf_cf_terms.list.end());
+	upperhalf_cf_terms.list.insert(upperhalf_cf_terms.list.end(),
+		lowerhalf_cf_terms.list.begin(), lowerhalf_cf_terms.list.end());
 
 	if (!calc_convergents) { upperhalf_cf_terms.updated = false; return upperhalf_cf_terms; }
 
@@ -150,10 +152,14 @@ CFTermList reg_cf_terms(const mpz_class& num, const mpz_class& den, bool calc_co
 		return upperhalf_cf_terms;
 	}
 	else {
-		mpz_class p_k = upperhalf_cf_terms.p_k * lowerhalf_cf_terms.p_k + upperhalf_cf_terms.p_k1 * lowerhalf_cf_terms.q_k;
-		mpz_class q_k = upperhalf_cf_terms.q_k * lowerhalf_cf_terms.p_k + upperhalf_cf_terms.q_k1 * lowerhalf_cf_terms.q_k;
-		mpz_class p_k1 = upperhalf_cf_terms.p_k * lowerhalf_cf_terms.p_k1 + upperhalf_cf_terms.p_k1 * lowerhalf_cf_terms.q_k1;
-		mpz_class q_k1 = upperhalf_cf_terms.q_k * lowerhalf_cf_terms.p_k1 + upperhalf_cf_terms.q_k1 * lowerhalf_cf_terms.q_k1;
+		mpz_class p_k = upperhalf_cf_terms.p_k * lowerhalf_cf_terms.p_k
+			+ upperhalf_cf_terms.p_k1 * lowerhalf_cf_terms.q_k;
+		mpz_class q_k = upperhalf_cf_terms.q_k * lowerhalf_cf_terms.p_k
+			+ upperhalf_cf_terms.q_k1 * lowerhalf_cf_terms.q_k;
+		mpz_class p_k1 = upperhalf_cf_terms.p_k * lowerhalf_cf_terms.p_k1
+			+ upperhalf_cf_terms.p_k1 * lowerhalf_cf_terms.q_k1;
+		mpz_class q_k1 = upperhalf_cf_terms.q_k * lowerhalf_cf_terms.p_k1
+			+ upperhalf_cf_terms.q_k1 * lowerhalf_cf_terms.q_k1;
 
 		upperhalf_cf_terms.p_k = p_k;
 		upperhalf_cf_terms.q_k = q_k;
@@ -194,6 +200,7 @@ void crunch_reg_cf_terms(std::string file, size_t terms) {
 
 	int target_iterations = -1;
 	do {
+		std::cout << "Larger # of target iterations = slow speed, but less RAM consumed.\n";
 		std::cout << "Enter the number of target iterations (very imprecise, enter 0 to use default): ";
 		std::cin >> target_iterations;
 
@@ -212,7 +219,9 @@ void crunch_reg_cf_terms(std::string file, size_t terms) {
 
 		double iter_start_time = wall_clock();
 
-		size_t redc = std::min(mpz_size(frac.get_num_mpz_t()), mpz_size(frac.get_den_mpz_t())) / (1. + 1. / target_iterations);	// Reduction size
+		size_t redc = std::min(mpz_size(frac.get_num_mpz_t()), mpz_size(frac.get_den_mpz_t()));
+		redc = size_t(redc / (1. + 2. / target_iterations));	// Reduction size
+
 		CFTermList convergents(reg_cf_terms(frac.get_num() >> (redc * sizeof(mp_limb_t) * 8),
 			frac.get_den() >> (redc * sizeof(mp_limb_t) * 8), true, true));
 
@@ -316,7 +325,7 @@ void crunch_reg_cf_terms_on_disk(std::string file, size_t terms, size_t bytes_pe
 			std::cerr << "Multiplying...";
 
 			// Determine correction fraction
-			size_t nfiles = frac.get_num().files();
+			size_t nfiles = frac.get_num().files() + frac.get_den().files();
 
 			double t = wall_clock();
 			disk_mpz c_num(nthreads == 1 ?
@@ -330,8 +339,6 @@ void crunch_reg_cf_terms_on_disk(std::string file, size_t terms, size_t bytes_pe
 			double end_t = wall_clock() - t;
 			std::cerr << "\t" << int(end_t) << "ms (den, \t"
 				<< (bytes_per_file * nfiles) / (1024. * 1.024 * end_t) << "MB/s)...";
-
-			nfiles = frac.get_den().files();
 
 			t = wall_clock();
 			disk_mpz c_den(nthreads == 1 ?

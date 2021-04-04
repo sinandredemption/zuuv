@@ -3,6 +3,8 @@
 #include <fstream>
 #include <iostream>
 #include <exception>
+#include <thread>
+#include <filesystem>
 
 /*
   The default constructor
@@ -17,7 +19,8 @@ disk_mpq::disk_mpq(std::string name, std::string filename, size_t bytes_per_file
   if (filename == "") { // Find files on disk
     size_t n = 0;
     do {
-      std::string f_num("disk_mpz\\" + name + "_num_" + std::to_string(n)), f_den("disk_mpz\\" + name + "_den_" + std::to_string(n));
+      std::string f_num("disk_mpz\\" + name + "_num_" + std::to_string(n)),
+        f_den("disk_mpz\\" + name + "_den_" + std::to_string(n));
       if (file_exists(f_num))
         num.pushback_file(name + "_num_" + std::to_string(n));
       if (file_exists(f_den))
@@ -211,8 +214,7 @@ disk_mpz disk_mpz::mt_cross_mult_sub(std::string name, size_t bytes_per_file, si
 {
   disk_mpz res(name, bytes_per_file);
 
-  auto mul_sub = [](const disk_mpz& a, const mpz_class& a1, const disk_mpz& b, const mpz_class& b1,
-    disk_mpz& res, size_t start, size_t end)
+  auto mul_sub = [&](size_t start, size_t end)
   {
     mpz_class m;
     for (size_t i = start; i < end; ++i) {
@@ -226,11 +228,12 @@ disk_mpz disk_mpz::mt_cross_mult_sub(std::string name, size_t bytes_per_file, si
 
   std::vector<std::thread> threads(nthreads - 1);
   float files = (float)std::max(a.files(), b.files());
-  for (size_t j = 1; j < nthreads; ++j) {
-    threads[j - 1] = std::thread(mul_sub, std::ref(a), std::ref(a1), std::ref(b), std::ref(b1), std::ref(res),
+
+  for (size_t j = 1; j < nthreads; ++j)
+    threads[j - 1] = std::thread(mul_sub,
       size_t(float(j) * files / nthreads), size_t((j+1.) * files / nthreads));
-  }
-  mul_sub(a, a1, b, b1, res, 0, (size_t)(files / nthreads));
+
+  mul_sub(0, (size_t)(files / nthreads));
 
   for (auto& th : threads)
     th.join();
@@ -309,7 +312,8 @@ void disk_mpz::set_mpz(size_t j, const mpz_class& mpz, bool update_file_list)
     throw name + ".set_mpz(): Can't open file '" + filename + "'";
 
   f.write((const char*)&(mpz.get_mpz_t()->_mp_size), sizeof(mpz.get_mpz_t()->_mp_size));
-  f.write((const char*)(mpz.get_mpz_t()->_mp_d), sizeof(*mpz.get_mpz_t()->_mp_d) * std::abs(mpz.get_mpz_t()->_mp_size));
+  f.write((const char*)(mpz.get_mpz_t()->_mp_d),
+    sizeof(*mpz.get_mpz_t()->_mp_d) * std::abs(mpz.get_mpz_t()->_mp_size));
   f.close();
 }
 
@@ -376,17 +380,15 @@ disk_mpz::~disk_mpz()
 // FIXME Just rename the files
 void disk_mpz_move(disk_mpz& to, disk_mpz& from)
 {
-  // Delete all files in 'to'
   while (to.files() > 0)
     to.pop_top();
 
-  // Copy files
-  for (int i = 0; i < from.files(); ++i)
-    to.pushback_mpz(from.mpz_at(i));
+  for (auto f : from.digit_files) {
+    std::filesystem::rename(f, to.get_filename(to.files()));
+    to.digit_files.push_back(to.get_filename(to.files()));
+  }
 
-  // Delete copies files
-  while (from.files() > 0)
-    from.pop_top();
+  to.sgn = from.sgn;
 }
 
 mpz_class disk_mpz::read_mpz(std::string filename)

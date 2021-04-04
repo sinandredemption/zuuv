@@ -12,8 +12,8 @@ namespace Params {
 	const size_t ThresholdReduc3 = 999999;
 	const size_t ThresholdReduc4 = 9999999;
 
-	const size_t BenchmarkDefaultSize = 1000000;	// Number of starting digits in CF benchmark
-	const size_t BenchmarkIters = 13;	// Number of Iterations to do in benchmark
+	const size_t BenchmarkDefaultSize = 1000000;	// Number of starting digits in CF benchmark_cf_cruncher
+	const size_t BenchmarkIters = 13;	// Number of Iterations to do in benchmark_cf_cruncher
 	const double BenchmarkMultFactor = 2.0;	// By default, double the size every iteration
 
 	const int TruncateConvergents = 10;

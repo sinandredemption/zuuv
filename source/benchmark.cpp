@@ -8,8 +8,9 @@
 #include "continuant.h"
 #include "cruncher.h"
 #include "utils.h"
+#include "disk_mpz.h"
 
-void benchmark(bool verify) {
+void benchmark_cf_cruncher(bool verify) {
   double ram_target, f = 0;
   int iters = 0;
   std::cout << "Enter target RAM usage (in MB): ";
@@ -123,8 +124,8 @@ void benchmark_continuant() {
       f += end / end2;
 
     if (c1 == c2) {
-      std::cout << "EQUAL | " << "result size: \t" << mpz_sizeinbase(c1.get_mpz_t(), 2) << " bits | multi-core util: \t"
-        << end / end2 << "x" << std::endl;
+      std::cout << "EQUAL | " << "result size: \t" << mpz_sizeinbase(c1.get_mpz_t(), 2)
+        << " bits | multi-core util: \t" << end / end2 << "x" << std::endl;
     }
     else {
       std::cout << "UNEQUAL" << std::endl;
@@ -134,6 +135,61 @@ void benchmark_continuant() {
 
   f /= Iters;
   std::cout << "Multi-core utilization: " << f << "x" << std::endl;
+}
+
+void benchmark_mult() {
+  size_t bytes_per_file = 0;
+  size_t nfiles = 0;
+  size_t nthreads = 0;
+  size_t iters = 0;
+
+  while (nfiles == 0) {
+    std::cout << "# of files: ";
+    std::cin >> nfiles;
+  }
+  while (bytes_per_file == 0) {
+    std::cout << "bytes per file: ";
+    std::cin >> bytes_per_file;
+  }
+  while (nthreads == 0) {
+    std::cout << "# of threads to use: ";
+    std::cin >> nthreads;
+  }
+  while (iters == 0) {
+    std::cout << "# of iterations: ";
+    std::cin >> iters;
+  }
+
+  std::cout << "Benchmarking disk_mpz multiplication... (frac size = "
+    << (2 * nfiles * bytes_per_file) / (1024.*1024.) << "MB, " << nthreads << " threads)...";
+
+  disk_mpq frac("bench", "", bytes_per_file);
+
+  for (size_t i = 0; i < nfiles; ++i) {
+    frac.get_den().pushback_mpz(mpz_rand(bytes_per_file));
+    frac.get_num().pushback_mpz(mpz_rand(bytes_per_file));
+  }
+
+  std::cout << std::endl << std::endl;
+  
+  for (size_t i = 1; i <= iters; ++i) {
+    std::cout << "Iteration " << i << "/" << iters << "...";
+
+    mpz_class a = mpz_rand(bytes_per_file), b = mpz_rand(bytes_per_file);
+
+    double start = wall_clock();
+    disk_mpz res(disk_mpz::mt_cross_mult_sub("bench_result", bytes_per_file, nthreads,
+      frac.get_num(), a, frac.get_den(), b));
+    double end = wall_clock() - start;
+
+    std::cout << "\n" << end << "ms | " <<
+      (nfiles * 2. * bytes_per_file * 1000.) / (end * 1024. * 1024.) << "MB/s" << std::endl;
+
+    while (res.files() > 0)
+      res.pop_top();
+
+    std::cout << std::endl;
+  }
 }
 
 void benchmark_basic_continuant() {
