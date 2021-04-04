@@ -59,4 +59,5 @@ Here is an incomplete list of contribution ideas:
 * Redesign the UI of Zuuv. Set defaults everywhere so that the user doesn't have to think too much.
 * Better parallelization. Zuuv can't parallelize well enough beyond 4-cores. More scalable changes would probably require algorithmic changes. I'm open to ideas.
 * Make RAM usage estimates more precise.
+
 If you're interested in contributing to Zuuv or are considering breaking a world record, do let me know, and I will try to help you.
