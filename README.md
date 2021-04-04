@@ -14,15 +14,6 @@ Linux build:
 The program requires a minimum of four threads to run efficiently. I haven't personally tested it on a dual-core setup, but I would expect performance issues.
 After downloading, to check if everything is alright, do a quick continuant benchmark (option 4) to see if everything is running fine.
 
-## Benchmarking
-There are two default benchmarks provided:
-### Benchmark Continued Fraction Cruncher
-Zuuv attempts to calculate the terms of regular continued fraction of a random fraction. This benchmark timing isn't very scalable beyond 4-cores (the procedure is essentially sequential in nature, and hence very difficult to parallalize beyond 4-cores. However, I am open to ideas.).
-### Benchmark Continuant Cruncher
-Zuuv attempts to calculate the continued of a list of random numbers (generated according to the Gauss-Kuzmin distribution to simulate continued fraction terms). The benchmark timing should benefit with increase in processor cores, as the procedure is well-parallelized.
-### Benchmark Disk-based Multiplication
-Zuuv attempts to benchmark a critical multiplication routine required in disk-based compuatations. This procedure again is well parallelized and should benefit well from scaling.
-
 ## Doing an actual computation
 Zuuv takes in a file containing the stream of digits of a number and calculates it's regular continued fraction terms in multiple iterations, each stored in the subdirectory `iterations`. A file pi_1m_hex.txt, containing 1 million hexadecimal digits of pi, is provided to experiment with Zuuv before launching a serious computation.
 
@@ -35,6 +26,15 @@ There are two compuatation modes.
 
 ### Disk based computations
 Disk based computations are the way to go for large computations. Disk-based computations can be used to control RAM requirements through adjusting `bytes per file`. Also, disk based computations are resumable and fault tolerant: if the program is terminated for any reason, the computation can begin again from the same iteration given that the values in folders `disk_mpz` and `iterations` are preserved.
+
+## Benchmarking
+There are two default benchmarks provided:
+### Benchmark Continued Fraction Cruncher
+Zuuv attempts to calculate the terms of regular continued fraction of a random fraction. This benchmark timing isn't very scalable beyond 4-cores (the procedure is essentially sequential in nature, and hence very difficult to parallalize beyond 4-cores. However, I am open to ideas.).
+### Benchmark Continuant Cruncher
+Zuuv attempts to calculate the continued of a list of random numbers (generated according to the Gauss-Kuzmin distribution to simulate continued fraction terms). The benchmark timing should benefit with increase in processor cores, as the procedure is well-parallelized.
+### Benchmark Disk-based Multiplication
+Zuuv attempts to benchmark a critical multiplication routine required in disk-based compuatations. This procedure again is well parallelized and should benefit well from scaling.
 
 ## Compiling
 Zuuv is written in C++17 and depends on the mpir-3.0.0 library.
