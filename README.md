@@ -12,6 +12,12 @@ With enough dedication, Zuuv can be utilized to break world records for computat
 
 ## Installation
 Windows and linux builds can be found in the `builds` directory. The Windows builds require the provided dll-file `mpir.dll` to be placed in the same folder as the executable.
+### Linux
+Linux build might require (mpir-3.0.0)[https://mpir.org/mpir-3.0.0.zip] library to be installed.
+1. Download and install mpir library: `wget https://mpir.org/mpir-3.0.0.zip`
+2. Navigate to mpir-3.0.0 folder and run `./configure --enable-cxx`. Install all the requirements with `sudo apt install <program>` in the case that `./configure` fails due to some missing program.
+3. Run `make install`
+
 ### Note on performance
 The program requires a minimum of four threads to run efficiently. I haven't personally tested it on a dual-core setup, but I would expect performance issues.
 After downloading, to check if everything is alright, do a quick continuant benchmark (option 4) to see if everything is running fine.
@@ -49,8 +55,10 @@ You will need to download and extract the mpir-3.0.0 library, and enable C++17 s
 #### C++17
 Goto Project -> Properties -> C/C++ -> Language -> C++ Language Standard, and choose "ISO C++17 Standard"
 ### g++
-1. Install the mpir library with C++ enabled (`./configure --enable-cxx`)
-2. Use the following command line: `g++ *.cpp -std=c++17 -pthread -lmpir` (of course, you can further optimize by `-O2` etc.)
+1. Install the mpir-3.0.0 library following the instructions given under "Installation" -> "Linux"
+2. Navigate to `source` folder and use the following command-line
+
+`g++ *.cpp -I /usr/lib/local/include -L /usr/lib/local/lib -lmpir -pthread -std=c++17 -Ofast -DNDEBUG -o zuuv` (of course, you can further optimize by `-O2` etc.)
 
 In case of problems, feel free to write to me.
 
