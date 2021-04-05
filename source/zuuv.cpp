@@ -7,9 +7,9 @@
 
 int main() {
 	std::cout << "Zuuv - Multi-precision Floating-point to Continued Fraction Cruncher" << std::endl;
-	std::cout << "Version: v0.0 ALPHA (released 4/Mar/21) | ";
+	std::cout << "Version: v0.0 ALPHA (released 4/Mar/21) | Syed Fahad ( sydfhd AT gmail.com )\n";
 
-	std::cout << std::thread::hardware_concurrency() / 2
+	std::cout << "Detected " << std::thread::hardware_concurrency() / 2
 		<< " cores | hyperthreading disabled" << std::endl;
 
 	std::filesystem::create_directory("iterations");

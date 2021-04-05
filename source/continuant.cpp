@@ -7,7 +7,7 @@
 namespace ContinuantCache {
 	std::map<std::pair<size_t, size_t>, mpz_class> table;
 	std::mutex mu;
-	std::atomic<size_t> available_threads;
+	std::atomic<int> available_threads;
 }
 
 mpz_class ContinuantCache::cached_continuant(size_t s, size_t t, size_t mid, const CFTerms& terms) {
@@ -45,7 +45,7 @@ mpz_class ContinuantCache::parallel_cached_continuant(size_t s, size_t t, size_t
 	if (t - s <= Params::ThresholdUseBasicContProc) {
 		ret = basic_continuant(s, t, terms);
 	}
-	else if (t - s < Params::ContinuantUseParallel || available_threads == 0) {
+	else if (t - s < Params::ContinuantUseParallel || available_threads <= 0) {
 		mpz_addmul(ret.get_mpz_t(),
 			parallel_cached_continuant(s, mid, (s + mid) / 2, terms).get_mpz_t(),
 			parallel_cached_continuant(mid + 1, t, (mid + t) / 2, terms).get_mpz_t());
