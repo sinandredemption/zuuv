@@ -7,11 +7,12 @@ Zuuv is a program that can compute the [regular continued fraction](https://en.w
 * Ability to utilize hard-disk to perform extremely large calculations
 * Ability to automatically save and resume partially computations
 * Basic multi-threading
+
 With enough dedication, Zuuv can be utilized to break world records for computation of regular continued fraction terms of important mathematical constants such as Pi, Euler-Mascheroni etc, even on regular PCs.
 
 ## Installation
-Windows build:
-Linux build:
+Windows builds can be found in the `builds` directory. The Windows builds require the provided dll-file `mpir.dll` to be placed in the same folder as the executable.
+### Note on performance
 The program requires a minimum of four threads to run efficiently. I haven't personally tested it on a dual-core setup, but I would expect performance issues.
 After downloading, to check if everything is alright, do a quick continuant benchmark (option 4) to see if everything is running fine.
 
@@ -59,4 +60,5 @@ Here is an incomplete list of contribution ideas:
 * Redesign the UI of Zuuv. Set defaults everywhere so that the user doesn't have to think too much.
 * Better parallelization. Zuuv can't parallelize well enough beyond 4-cores. More scalable changes would probably require algorithmic changes. I'm open to ideas.
 * Make RAM usage estimates more precise.
+
 If you're interested in contributing to Zuuv or are considering breaking a world record, do let me know, and I will try to help you.
