@@ -2,6 +2,7 @@
 #include "benchmark.h"
 #include <iostream>
 #include <thread>
+#include <fstream>
 #include <filesystem>
 
 int main() {
@@ -28,23 +29,24 @@ int main() {
 	try {
 		switch (choice)
 		{
-		case 1: case 2:
+		case 1:
 		{
 			std::cout << "Enter # terms: ";
 			uint64_t terms = 0;
 			std::cin >> terms;
 
 			int ram_based = 0;
-			std::cout << "1 - (Default) RAM based computation (~" << (terms * 1.668041967e-5) << "MB required)\n";
-			std::cout << "2 - Disk based computation" << std::endl;
-			std::cout << "Choose: ";
-			std::cin >> ram_based;
+
+				std::cout << "1 - (Default) RAM based computation (~" << (terms * 1.668041967e-5) << "MB required)\n";
+				std::cout << "2 - Disk based computation" << std::endl;
+				std::cout << "Choose: ";
+				std::cin >> ram_based;
 
 			size_t bytes_per_file = 0;
 			if (ram_based == 2) {
 				double file_size = 0;
 
-				std::cout << "\nPeak RAM usage ~= 70x - 150x bytes per file";
+				std::cout << "\nPeak RAM usage ~= 70x - 150x file size" << std::endl;
 				std::cout << "Enter file size (MBs, default = 10): ";
 				std::cin >> file_size;
 				bytes_per_file = file_size * 1024. * 1024. + 1;
@@ -57,6 +59,11 @@ int main() {
 			}
 
 			if (bytes_per_file > 0) {
+				std::ofstream options("zuuv.txt");
+				options << bytes_per_file << std::endl;
+				options << terms << std::endl;
+				options.close();
+
 				std::cout << "WARNING: The file must contain hexadecimal digits.\n"
 					<< "Decimal digits for disk-based computations are not yet supported.\n" << std::endl;
 				//std::cout << "Enter number of threads to use: ";
@@ -66,6 +73,20 @@ int main() {
 				crunch_reg_cf_terms_on_disk(file, terms, bytes_per_file, nthreads);
 			}
 			else crunch_reg_cf_terms(file, terms);
+
+			break;
+		}
+
+		case 2:
+		{
+			size_t bytes_per_file, terms, nthreads = std::thread::hardware_concurrency() / 2;
+
+			std::ifstream options("zuuv.txt");
+			if (!options.good()) throw "Can't load options from file 'zuuv.txt'";
+			options >> bytes_per_file >> terms;
+			options.close();
+
+			crunch_reg_cf_terms_on_disk("", terms, bytes_per_file, nthreads);
 
 			break;
 		}
@@ -101,7 +122,7 @@ int main() {
 		}
 	}
 	catch (const char* ex) {
-		std::cerr << "\nERROR: " << *ex << "\nTerminating program..." << std::endl;
+		std::cerr << "\nERROR: " << ex << "\nTerminating program..." << std::endl;
 	}
 
 	std::cout << "Press enter to continue...";

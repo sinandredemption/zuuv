@@ -285,8 +285,13 @@ void crunch_reg_cf_terms(std::string file, size_t terms) {
 }
 
 void crunch_reg_cf_terms_on_disk(std::string file, size_t terms, size_t bytes_per_file, size_t nthreads) {
-	std::cerr << "Computing " << terms << " terms of " << file << " using "
-		<< (double)bytes_per_file / (1024*1024) << "MB per file" << std::endl;
+	if (file != "")
+		std::cerr << "Computing " << terms << " terms from file '" << file << "' using "
+		<< (double)bytes_per_file / (1024 * 1024) << "MB/file" << std::endl;
+	else
+		std::cerr << "Resuming computation of " << terms << " terms using " << (double)bytes_per_file / (1024. * 1024.) <<
+		"MB/file" << std::endl;
+
 	int iter = 1;
 	size_t computed_terms = 0;
 
