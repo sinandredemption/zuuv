@@ -36,7 +36,7 @@ There are two computation modes.
 Disk based computations are the way to go for large computations. Disk-based computations can be used to control RAM requirements through adjusting `bytes per file`. Also, disk based computations are resumable and fault tolerant: if the program is terminated for any reason, the computation can begin again from the same iteration given that the values in folders `disk_mpz` and `iterations` are preserved.
 
 ## Benchmarking
-There are two default benchmarks provided:
+There are three default benchmarks provided:
 ### Benchmark Continued Fraction Cruncher
 Zuuv attempts to calculate the terms of the regular continued fraction of a random fraction. This benchmark isn't _very_ scalable beyond 4-cores (the procedure is essentially sequential in nature, and hence difficult to parallelize beyond 4-cores. However, I am open to ideas.).
 ### Benchmark Continuant Cruncher
