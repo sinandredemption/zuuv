@@ -61,7 +61,7 @@ You will need to download and extract the mpir-3.0.0 library, and enable C++17 s
 #### C++17
 6. Goto _Project -> Properties -> C/C++ -> Language -> C++ Language Standard_, and choose "_ISO C++17 Standard_"
 ### g++
-1. Install the **mpir-3.0.0 library** following the instructions given under _"Installation" -> "Linux"_
+1. Install the **mpir-3.0.0 library** following the instructions given under _"[Installation](#installation)" -> "Linux"_
 2. Navigate to `source` folder and use the following command-line
 
 `g++ *.cpp -I /usr/lib/local/include -L /usr/lib/local/lib -lmpir -pthread -std=c++17 -Ofast -DNDEBUG -o zuuv`
