@@ -23,8 +23,8 @@ void read_from_file(mpq_class* frac, std::string file_name, bool dec)
 
 	file.close();
 
-	std::cout << " dec size: \t" << mpz_sizeinbase(frac->get_num_mpz_t(), 10)
-		<< " hex size: \t" << mpz_sizeinbase(frac->get_num_mpz_t(), 16) << std::endl;
+	std::cout << " dec digits: \t" << mpz_sizeinbase(frac->get_num_mpz_t(), 10)
+		<< " | hex digits: \t" << mpz_sizeinbase(frac->get_num_mpz_t(), 16) << std::endl;
 
 	frac->get_den() = 1;
 	frac->get_den() <<= mpz_sizeinbase(frac->get_num_mpz_t(), 2) - 2;
@@ -36,7 +36,7 @@ void output_cf_terms_list(const CFTerms& cf_term_list, std::string file_name, bo
 	if (verbose)
 		std::cout << "Writing " << cf_term_list.size() << " terms to file: " << file_name << "...";
 
-	std::ofstream out(std::string("iterations\\") + file_name);
+	std::ofstream out(std::string("iterations/") + file_name);
 
 	if (!out) {
 		if (verbose)

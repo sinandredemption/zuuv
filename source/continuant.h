@@ -13,6 +13,10 @@ namespace ContinuantCache {
 	mpz_class cached_continuant(size_t s, size_t t, size_t mid, const CFTerms&);
 	mpz_class parallel_cached_continuant(size_t s, size_t t, size_t mid, const CFTerms&);
 	void clear();
+
+	void dummy_run(size_t s, size_t t, size_t mid);
+	mpz_class continuant_new(size_t s, size_t t, size_t mid, const CFTerms& terms);
+	mpz_class parallel_continuant_new(size_t s, size_t t, size_t mid, const CFTerms& terms);
 }
 
 mpz_class continuant(size_t s, size_t t, const CFTerms&, size_t split_point = 0);

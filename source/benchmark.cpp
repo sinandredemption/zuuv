@@ -11,15 +11,15 @@
 #include "disk_mpz.h"
 
 void benchmark_cf_cruncher(bool verify) {
-  double ram_target, f = 0;
+  double frac_size, f = 0;
   int iters = 0;
-  std::cout << "Enter target RAM usage (in MB): ";
-  std::cin >> ram_target;
+  std::cout << "Enter fraction size (in MB): ";
+  std::cin >> frac_size;
   std::cout << "Enter # iterations: ";
   std::cin >> iters;
-  size_t frac_size = ram_target * 12825;  // fixme
-  std::cout << "\nBenchmarking against mpz_gcd() using target RAM = " << ram_target
-    << "MB (frac size = " << frac_size << ")..." << std::endl;
+  frac_size *= 1024 * 1024;
+  std::cout << "\nBenchmarking against mpz_gcd() using fraction size = " << frac_size / (1024.*1024.)
+    << "MB..." << std::endl;
 
   for (int i = 0; i < iters; ++i) {
     mpz_class a(mpz_rand(frac_size)), b(mpz_rand(frac_size));
@@ -29,6 +29,10 @@ void benchmark_cf_cruncher(bool verify) {
     double start = wall_clock();
     auto c = reg_cf_terms(a, b);
     double end = wall_clock() - start;
+
+    if (c.list.empty())
+      c.onload();
+
     std::cout << "\t" << end << "ms for " << c.list.size() << " convergents (largest: "
       << *std::max_element(c.list.begin(), c.list.end()) << ")" << std::endl;
 
@@ -39,18 +43,20 @@ void benchmark_cf_cruncher(bool verify) {
     double end2 = wall_clock() - start;
     std::cout << "    \t" << end2 << "ms for gcd(" << g.get_d() << ") (f: " << end / end2 << ")" << std::endl;
 
+
     f += end / end2;
 
     if (verify) {
       std::cout << "Verifying...";
       if (c.updated == false) c.update();
       if (a != g * c.p_k || b != g * c.q_k) {
-        std::cerr << " ERROR. Incorrect calculation.";
-        std::cerr << "Press 'y' to dump the calculations: ";
+        std::cerr << " ERROR. Incorrect calculation. ";
+        std::cerr << "Do you want to dump the calculations (yes/no)? ";
 
-        char yes;
-        std::cin >> yes;
-        if (yes == 'y') {
+        std::string choice;
+        std::cin >> choice;
+        if (choice == "yes") {
+          std::cout << "Dumping..." << std::flush;
           CFTerms actual_cf;
           basecase_reg_cf_terms(a, b, actual_cf, false);
 
@@ -59,16 +65,17 @@ void benchmark_cf_cruncher(bool verify) {
           error_file << "a: " << a.get_str() << "\nb: " << b.get_str() << "\ng: "
             << g.get_str() << "\np_k" << c.p_k.get_str() << "\nq_k: " << c.q_k.get_str() << std::endl;
           error_file << "Correct CF: ";
+          int i = 0;
           for (auto corr : actual_cf)
-            error_file << corr << ' ';
+            error_file << corr << ((++i % 100 == 0) ? '\n' : ' ');
+          i = 0;
           error_file << "\nCF: ";
           for (auto incorr : c.list)
-            error_file << incorr << ' ';
+            error_file << incorr << ((++i % 100 == 0) ? '\n' : ' ');
           error_file.close();
+          std::cout << " completed" << std::endl;
         }
-      }
-
-      std::cout << "CORRECT";
+      } else std::cout << "CORRECT";
     }
     std::cout << std::endl;
   }
@@ -104,7 +111,7 @@ void benchmark_continuant() {
     }
     std::cout << std::endl;
 
-    std::cout << "single-core...";
+    std::cout << "type 1...";
     double start = wall_clock();
     ContinuantCache::clear();
     auto c1 = ContinuantCache::cached_continuant(0, cfterms.size() - 1, cfterms.size() / 2, cfterms);
@@ -112,10 +119,11 @@ void benchmark_continuant() {
     double end = wall_clock() - start;
     std::cout << "\t" << end << "ms " << std::endl;
 
-    std::cout << "multi-core...";
+    std::cout << "type 2...";
     start = wall_clock();
     ContinuantCache::clear();
-    auto c2 = parallel_continuant(0, cfterms.size() - 1, cfterms);
+    ContinuantCache::dummy_run(0, cfterms.size() - 1, cfterms.size() / 2);
+    auto c2 = ContinuantCache::continuant_new(0, cfterms.size() - 1, cfterms.size() / 2, cfterms);
     ContinuantCache::clear();
     double end2 = wall_clock() - start;
     std::cout << "\t" << end2 << "ms" << std::endl;
@@ -204,7 +212,6 @@ void benchmark_basic_continuant() {
     double start = wall_clock();
     size_t checksum = 0;
     for (int j = 0; j < n; ++j) {
-      //auto c1 = basic_continuant(0, cfterms.size() - 1, cfterms);
       ContinuantCache::clear();
       auto c1 = ContinuantCache::cached_continuant(0, cl.size() - 1, cl.size() / 2, cl);
       ContinuantCache::clear();

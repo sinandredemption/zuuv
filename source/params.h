@@ -12,14 +12,13 @@ namespace Params {
 	const size_t ThresholdReduc3 = 999999;
 	const size_t ThresholdReduc4 = 9999999;
 
-	const size_t BenchmarkDefaultSize = 1000000;	// Number of starting digits in CF benchmark_cf_cruncher
-	const size_t BenchmarkIters = 13;	// Number of Iterations to do in benchmark_cf_cruncher
-	const double BenchmarkMultFactor = 2.0;	// By default, double the size every iteration
-
-	const int TruncateConvergents = 10;
+	const int TruncateConvergents = 10;	// You can probably get away with even 4... just for safety
 
 	const size_t ContinuantUseParallel = 50000;
-	const size_t CFTermsUseParallelMultThreshold = 2500;
+
+	const size_t CFTermsUseParallelMultThreshold1 = 2500;
+	const size_t CFTermsUseParallelMultThreshold2 = 3000;
+	const size_t CFTermsUseDisk = 1000000ULL;
 }
 
 #endif

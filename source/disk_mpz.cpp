@@ -9,7 +9,7 @@
 /*
   The default constructor
   Params: "name" = name of the fraction (used in disk i/o), "filename" = path to file containing
-  hex digits, "bytes_per_file" = size of each file
+  hex digits, "bytes_per_file" = terms_on_disk of each file
   Note that the constructor ignores the integer part of fraction, i.e. 3.14159... will be
   internally stored as 0.14159265...
 */

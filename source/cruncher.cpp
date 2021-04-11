@@ -8,6 +8,10 @@
 #include <iomanip>
 #include <algorithm>
 #include <thread>
+#include <filesystem>
+
+
+size_t _cf_terms_file_idx = 1;
 
 void basecase_reg_cf_terms(const mpz_class& num, const mpz_class& den, CFTerms& out, bool half) {
 	mpz_class r, N(num), D(den), s;
@@ -48,7 +52,11 @@ CFTermList reg_cf_terms(const mpz_class& num, const mpz_class& den, bool calc_co
 	CFTermList upperhalf_cf_terms(reg_cf_terms(num >> (reduction_size * sizeof(mp_limb_t) * 8),
 		den >> (reduction_size * sizeof(mp_limb_t) * 8), true, true));
 
-	assert(!upperhalf_cf_terms.list.empty());
+	assert(upperhalf_cf_terms.terms_on_disk > 0 || !upperhalf_cf_terms.list.empty());
+	
+	if (upperhalf_cf_terms.list.size() > Params::CFTermsUseDisk)
+		upperhalf_cf_terms.offload();
+	
 
 	// Determine correction fraction
 	// Numerator = b * p_{k-1} - a * q_{k-1}
@@ -58,7 +66,7 @@ CFTermList reg_cf_terms(const mpz_class& num, const mpz_class& den, bool calc_co
 	// Launch a new thread to calculate denom
 	mpz_class correction_num(0), correction_den(0);
 
-	if (reduction_size * 2 > Params::CFTermsUseParallelMultThreshold) {
+	if (reduction_size * 2 > Params::CFTermsUseParallelMultThreshold1) {
 		// correction_den = c_den1 - c_den2 (same for correction_num)
 		mpz_class c_den1, c_den2, c_num1, c_num2;
 
@@ -73,17 +81,6 @@ CFTermList reg_cf_terms(const mpz_class& num, const mpz_class& den, bool calc_co
 		th1.join();
 		th2.join();
 		mpz_sub(correction_den.get_mpz_t(), c_den1.get_mpz_t(), c_den2.get_mpz_t());
-
-		/*auto f = [&]() {
-			mpz_addmul(correction_den.get_mpz_t(), num.get_mpz_t(), upperhalf_cf_terms.q_k.get_mpz_t());
-			mpz_submul(correction_den.get_mpz_t(), den.get_mpz_t(), upperhalf_cf_terms.p_k.get_mpz_t());
-		};
-		std::thread th(f);
-
-		mpz_addmul(correction_num.get_mpz_t(), den.get_mpz_t(), upperhalf_cf_terms.p_k1.get_mpz_t());
-		mpz_submul(correction_num.get_mpz_t(), num.get_mpz_t(), upperhalf_cf_terms.q_k1.get_mpz_t());
-
-		th.join();*/
 	}
 	else {
 		mpz_addmul(correction_den.get_mpz_t(), num.get_mpz_t(), upperhalf_cf_terms.q_k.get_mpz_t());
@@ -103,7 +100,15 @@ CFTermList reg_cf_terms(const mpz_class& num, const mpz_class& den, bool calc_co
 	if (mpz_sgn(correction_num.get_mpz_t()) < 0
 		|| mpz_sgn(correction_den.get_mpz_t()) < 0
 		|| (correction_num < correction_den)) {
-		corrections = perform_correction(correction_num, correction_den, upperhalf_cf_terms.list);
+		corrections = perform_correction(correction_num, correction_den, upperhalf_cf_terms);
+
+		
+		if (upperhalf_cf_terms.list.empty()) {
+			upperhalf_cf_terms.terms_on_disk -= corrections;
+			std::filesystem::resize_file(upperhalf_cf_terms.get_filename(),
+				sizeof(uint64_t) * upperhalf_cf_terms.terms_on_disk);
+		}
+		
 		upperhalf_cf_terms.updated = false;
 
 		assert(correction_num >= 0 && correction_den > 0);
@@ -122,7 +127,7 @@ CFTermList reg_cf_terms(const mpz_class& num, const mpz_class& den, bool calc_co
 
 	if (half) {
 		reduction_size = std::min(mpz_size(correction_num.get_mpz_t()),
-			mpz_size(correction_den.get_mpz_t()));	// Reduction size
+			mpz_size(correction_den.get_mpz_t()));	// Reduction terms_on_disk
 
 		if (mpz_size(correction_num.get_mpz_t()) < Params::ThresholdReduc1)
 			reduction_size /= 2;
@@ -139,11 +144,16 @@ CFTermList reg_cf_terms(const mpz_class& num, const mpz_class& den, bool calc_co
 	}
 	else lowerhalf_cf_terms = reg_cf_terms(correction_num, correction_den, calc_convergents);
 
+	
+	if (lowerhalf_cf_terms.list.size() > Params::CFTermsUseDisk)
+		lowerhalf_cf_terms.offload();
+	
+
 	if (calc_convergents && !upperhalf_cf_terms.updated)
 		upperhalf_cf_terms.update(corrections == 1);
 
-	upperhalf_cf_terms.list.insert(upperhalf_cf_terms.list.end(),
-		lowerhalf_cf_terms.list.begin(), lowerhalf_cf_terms.list.end());
+	upperhalf_cf_terms.append(lowerhalf_cf_terms);
+	
 
 	if (!calc_convergents) { upperhalf_cf_terms.updated = false; return upperhalf_cf_terms; }
 
@@ -152,14 +162,44 @@ CFTermList reg_cf_terms(const mpz_class& num, const mpz_class& den, bool calc_co
 		return upperhalf_cf_terms;
 	}
 	else {
-		mpz_class p_k = upperhalf_cf_terms.p_k * lowerhalf_cf_terms.p_k
-			+ upperhalf_cf_terms.p_k1 * lowerhalf_cf_terms.q_k;
-		mpz_class q_k = upperhalf_cf_terms.q_k * lowerhalf_cf_terms.p_k
-			+ upperhalf_cf_terms.q_k1 * lowerhalf_cf_terms.q_k;
-		mpz_class p_k1 = upperhalf_cf_terms.p_k * lowerhalf_cf_terms.p_k1
-			+ upperhalf_cf_terms.p_k1 * lowerhalf_cf_terms.q_k1;
-		mpz_class q_k1 = upperhalf_cf_terms.q_k * lowerhalf_cf_terms.p_k1
-			+ upperhalf_cf_terms.q_k1 * lowerhalf_cf_terms.q_k1;
+		mpz_class p_k, q_k, p_k1, q_k1;
+
+		if (reduction_size * 2 <= Params::CFTermsUseParallelMultThreshold2) {
+			p_k = upperhalf_cf_terms.p_k * lowerhalf_cf_terms.p_k
+				+ upperhalf_cf_terms.p_k1 * lowerhalf_cf_terms.q_k;
+			q_k = upperhalf_cf_terms.q_k * lowerhalf_cf_terms.p_k
+				+ upperhalf_cf_terms.q_k1 * lowerhalf_cf_terms.q_k;
+			p_k1 = upperhalf_cf_terms.p_k * lowerhalf_cf_terms.p_k1
+				+ upperhalf_cf_terms.p_k1 * lowerhalf_cf_terms.q_k1;
+			q_k1 = upperhalf_cf_terms.q_k * lowerhalf_cf_terms.p_k1
+				+ upperhalf_cf_terms.q_k1 * lowerhalf_cf_terms.q_k1;
+		}
+		else {
+			std::thread th1(mpz_mul, p_k.get_mpz_t(),
+				upperhalf_cf_terms.p_k.get_mpz_t(), lowerhalf_cf_terms.p_k.get_mpz_t());
+			std::thread th2(mpz_mul, q_k.get_mpz_t(),
+				upperhalf_cf_terms.q_k.get_mpz_t(), lowerhalf_cf_terms.p_k.get_mpz_t());
+			std::thread th3(mpz_mul, p_k1.get_mpz_t(),
+				upperhalf_cf_terms.p_k.get_mpz_t(), lowerhalf_cf_terms.p_k1.get_mpz_t());
+			mpz_mul(q_k1.get_mpz_t(),
+				upperhalf_cf_terms.q_k.get_mpz_t(), lowerhalf_cf_terms.p_k1.get_mpz_t());
+
+			th1.join();
+			th1 = std::thread(mpz_addmul, p_k.get_mpz_t(),
+				upperhalf_cf_terms.p_k1.get_mpz_t(), lowerhalf_cf_terms.q_k.get_mpz_t());
+			th2.join();
+			th2 = std::thread(mpz_addmul, q_k.get_mpz_t(),
+				upperhalf_cf_terms.q_k1.get_mpz_t(), lowerhalf_cf_terms.q_k.get_mpz_t());
+			th3.join();
+			th3 = std::thread(mpz_addmul, p_k1.get_mpz_t(),
+				upperhalf_cf_terms.p_k1.get_mpz_t(), lowerhalf_cf_terms.q_k1.get_mpz_t());
+			mpz_addmul(q_k1.get_mpz_t(),
+				upperhalf_cf_terms.q_k1.get_mpz_t(), lowerhalf_cf_terms.q_k1.get_mpz_t());
+
+			th1.join();
+			th2.join();
+			th3.join();
+		}
 
 		upperhalf_cf_terms.p_k = p_k;
 		upperhalf_cf_terms.q_k = q_k;
@@ -170,7 +210,7 @@ CFTermList reg_cf_terms(const mpz_class& num, const mpz_class& den, bool calc_co
 	return upperhalf_cf_terms;
 }
 
-int perform_correction(mpz_class& num, mpz_class& den, CFTerms& c) {
+int perform_correction(mpz_class& num, mpz_class& den, CFTermList& c) {
 	int corrections = 0;
 	while (mpz_sgn(num.get_mpz_t()) < 0 || mpz_sgn(den.get_mpz_t()) < 0 || (num < den)) {
 		corrections++;
@@ -182,11 +222,21 @@ int perform_correction(mpz_class& num, mpz_class& den, CFTerms& c) {
 			mpz_neg(den.get_mpz_t(), den.get_mpz_t());
 		}
 
-		mpz_addmul_ui(num.get_mpz_t(), den.get_mpz_t(), c.back());
+		
+		if (c.list.empty()) {
+			uint64_t lastterm;
+			std::ifstream cfterms_file(c.get_filename(), std::ios::in | std::ios::binary);
+			cfterms_file.seekg((c.terms_on_disk - corrections ) * sizeof(uint64_t));
+			cfterms_file.read((char*)&lastterm, sizeof(uint64_t));
+			mpz_addmul_ui(num.get_mpz_t(), den.get_mpz_t(), lastterm);
+		}
+		else {
+			mpz_addmul_ui(num.get_mpz_t(), den.get_mpz_t(), c.list.back());
+			c.list.pop_back();
 
-		c.pop_back();
-		if (c.empty())
-			return corrections;
+			if (c.list.empty())
+				return corrections;
+		}
 	}
 	return corrections;
 }
@@ -220,10 +270,13 @@ void crunch_reg_cf_terms(std::string file, size_t terms) {
 		double iter_start_time = wall_clock();
 
 		size_t redc = std::min(mpz_size(frac.get_num_mpz_t()), mpz_size(frac.get_den_mpz_t()));
-		redc = size_t(redc / (1. + 2. / target_iterations));	// Reduction size
+		redc = size_t(redc / (1. + 1. / target_iterations));	// Reduction terms_on_disk
 
 		CFTermList convergents(reg_cf_terms(frac.get_num() >> (redc * sizeof(mp_limb_t) * 8),
 			frac.get_den() >> (redc * sizeof(mp_limb_t) * 8), true, true));
+
+		if (convergents.list.empty())
+			convergents.onload();
 
 		if (!convergents.updated) convergents.update();
 
@@ -250,7 +303,7 @@ void crunch_reg_cf_terms(std::string file, size_t terms) {
 		// Correct CF of Upper half if correction term is negative
 		size_t corrections = 0;
 		if (sgn(frac.get_num()) < 0 || sgn(frac.get_den()) < 0 || (frac.get_num() < frac.get_den())) {
-			corrections = perform_correction(frac.get_num(), frac.get_den(), convergents.list);
+			corrections = perform_correction(frac.get_num(), frac.get_den(), convergents/*.list*/);
 
 			convergents.updated = false;
 
@@ -317,6 +370,8 @@ void crunch_reg_cf_terms_on_disk(std::string file, size_t terms, size_t bytes_pe
 
 		CFTermList convergents
 		(reg_cf_terms(frac.get_num().get_top2_mpz(), frac.get_den().get_top2_mpz(), true, true));
+
+		convergents.onload();
 
 		for (int i = 0; i < Params::TruncateConvergents; ++i)
 			convergents.list.pop_back();
@@ -397,6 +452,11 @@ void crunch_reg_cf_terms_on_disk(std::string file, size_t terms, size_t bytes_pe
 
 
 void CFTermList::update(bool single_term) {
+	bool keep_loaded = false;
+	if (list.size() == 0)
+		onload();
+	else keep_loaded = true;
+
 	if (list.size() > 2 && list.size() < Params::ThresholdUseBasicContProc) {
 		auto lo = continuant_pair_right(0, list.size() - 1, list);
 		auto hi = continuant_pair_right(1, list.size() - 1, list);
@@ -408,6 +468,13 @@ void CFTermList::update(bool single_term) {
 	else {
 		auto mid = list.size() / 2;
 		ContinuantCache::clear();
+
+		//--
+		if (!single_term) ContinuantCache::dummy_run(0, list.size() - 1, mid);
+		ContinuantCache::dummy_run(0, list.size() - 2, mid);
+		if (!single_term) ContinuantCache::dummy_run(1, list.size() - 1, mid);
+		ContinuantCache::dummy_run(1, list.size() - 2, mid);
+		//--
 
 		if (single_term) p_k = p_k1;
 		else p_k = list.size() == 1 ? 1 : continuant(0, list.size() - 1, list, mid);
@@ -421,4 +488,70 @@ void CFTermList::update(bool single_term) {
 	}
 
 	updated = true;
+
+	if (list.size() > Params::CFTermsUseDisk && !keep_loaded)
+		offload();
+}
+
+void CFTermList::offload()
+{
+	terms_on_disk = list.size();
+	if (idx == 0)
+		idx = _cf_terms_file_idx++;
+
+	std::ofstream cfterms_file(get_filename(),
+		std::ios::binary | std::ios::out);
+
+	cfterms_file.write((const char*) list.data(),
+		sizeof(mpir_ui) * list.size());
+
+	cfterms_file.close();
+	list.clear();
+}
+
+void CFTermList::onload() {
+	// Load data from disk to RAM
+	list.resize(terms_on_disk);
+
+	std::ifstream cfterms_file(get_filename(), std::ios::binary | std::ios::in);
+	cfterms_file.read((char*)list.data(), terms_on_disk * sizeof(uint64_t));
+
+	cfterms_file.close();
+
+	std::filesystem::remove(get_filename());
+}
+
+void CFTermList::append(const CFTermList& to_append)
+{
+	auto append_to_file = [&]() {
+		std::filesystem::resize_file(get_filename(), sizeof(uint64_t) * terms_on_disk);
+		std::ofstream outFile(get_filename(), std::ios::app | std::ios::binary);
+		if (to_append.terms_on_disk > 0) {
+			std::ifstream inFile(to_append.get_filename(), std::ios::binary | std::ios::in);
+			//outFile.seekp();
+			outFile << inFile.rdbuf();
+			inFile.close();
+			terms_on_disk += to_append.terms_on_disk;
+
+			std::filesystem::remove(to_append.get_filename());
+		}
+		else {
+			outFile.write((const char*)to_append.list.data(),
+				sizeof(uint64_t) * to_append.list.size());
+			terms_on_disk += to_append.list.size();
+		}
+		outFile.close();
+	};
+
+	if (terms_on_disk > 0) {	// If already offloaded
+		append_to_file();
+	}
+	else {
+		if (to_append.terms_on_disk == 0)
+			list.insert(list.end(), to_append.list.begin(), to_append.list.end());
+		else {	// Offload if the other list is already offloaded
+			offload();
+			append_to_file();
+		}
+	}
 }
