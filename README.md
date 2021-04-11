@@ -23,8 +23,12 @@ The program requires a minimum of four threads to run efficiently. I haven't per
 After downloading, to check if everything is alright, do a quick continuant benchmark (option 4) to see if everything is running fine.
 
 ## Doing an actual computation
-Zuuv takes in a file containing the stream of digits of a number and calculates its regular continued fraction terms in multiple iterations, each stored in the subdirectory `iterations`. A file pi_1m_hex.txt, containing 1 million hexadecimal digits of pi, is provided to experiment with Zuuv before launching a serious computation.
+Zuuv takes in a file containing the stream of digits of a number and calculates its regular continued fraction terms in multiple iterations, each stored in the subdirectory `iterations`. A file `pi_1m_hex.txt`, containing one million hexadecimal digits of pi, is provided to experiment with Zuuv before launching a serious computation.
 
+#### How many terms can I compute from X digits of pi?
+As a rule of thumb, you can compute `1.167 x <number of hex digits>` terms or `0.97 x <number of dec digits>` terms of simple continued fraction. For example, a file containing five billion hex digits of pi can be used to compute `5 billion x 1.167 = 5.835 billion` terms of simple continued fraction of pi.
+
+## Computation modes
 There are two computation modes.
 
 | Computation Mode | RAM requirements | Disk requirements | Resumable |  Speed  | Comments |
