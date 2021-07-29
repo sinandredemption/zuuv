@@ -114,7 +114,11 @@ void benchmark_continuant() {
     std::cout << "type 1...";
     double start = wall_clock();
     ContinuantCache::clear();
-    auto c1 = ContinuantCache::cached_continuant(0, cfterms.size() - 1, cfterms.size() / 2, cfterms);
+    // --
+    ContinuantCache::dummy_run(0, cfterms.size() - 1, cfterms.size() / 2);
+    auto c1 = ContinuantCache::continuant_new(0, cfterms.size() - 1, cfterms.size() / 2, cfterms);
+    // --
+    //auto c1 = ContinuantCache::parallel_cached_continuant(0, cfterms.size() - 1, cfterms.size() / 2, cfterms);
     ContinuantCache::clear();
     double end = wall_clock() - start;
     std::cout << "\t" << end << "ms " << std::endl;
@@ -122,8 +126,9 @@ void benchmark_continuant() {
     std::cout << "type 2...";
     start = wall_clock();
     ContinuantCache::clear();
+    //ContinuantCache::parallel_dummy_run(0, cfterms.size() - 1, cfterms.size() / 2);
     ContinuantCache::dummy_run(0, cfterms.size() - 1, cfterms.size() / 2);
-    auto c2 = ContinuantCache::continuant_new(0, cfterms.size() - 1, cfterms.size() / 2, cfterms);
+    auto c2 = ContinuantCache::parallel_continuant_new(0, cfterms.size() - 1, cfterms.size() / 2, cfterms);
     ContinuantCache::clear();
     double end2 = wall_clock() - start;
     std::cout << "\t" << end2 << "ms" << std::endl;

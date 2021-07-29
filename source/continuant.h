@@ -15,6 +15,7 @@ namespace ContinuantCache {
 	void clear();
 
 	void dummy_run(size_t s, size_t t, size_t mid);
+	void parallel_dummy_run(size_t s, size_t t, size_t mid, const int tid = 0);
 	mpz_class continuant_new(size_t s, size_t t, size_t mid, const CFTerms& terms);
 	mpz_class parallel_continuant_new(size_t s, size_t t, size_t mid, const CFTerms& terms);
 }

@@ -8,6 +8,7 @@
 namespace ContinuantCache {
 	std::map<std::pair<size_t, size_t>, mpz_class> table;
 	std::map<std::pair<size_t, size_t>, int> table_hit;
+
 	std::mutex mu;
 	std::atomic<int> available_threads;
 }
@@ -163,11 +164,12 @@ mpz_class ContinuantCache::parallel_continuant_new(size_t s, size_t t, size_t mi
 		mpz_class ret(table[{s, t}]);
 
 		table_hit[{s, t}]--;
-		/*if (table_hit[{s, t}] == 0)
-			table.erase({ s, t });*/
+
+		if (table_hit[{s, t}] == 0) {
+			table.erase({ s,t });
+		}
 
 		mu.unlock();
-
 		return ret;
 	}
 	mu.unlock();
@@ -186,58 +188,49 @@ mpz_class ContinuantCache::parallel_continuant_new(size_t s, size_t t, size_t mi
 			parallel_continuant_new(mid + 2, t, (mid + t) / 2, terms).get_mpz_t());
 	}
 	else {
-
-		//std::thread th[3];
-		std::future<mpz_class> ret_th[3];
-		bool wait_for_th[3] = { false, false, false };
 		mpz_class m[4];
+		std::thread th;
+		auto new_thread_func = [&]() {
+			m[1] = parallel_continuant_new(mid + 1, t, (mid + t) / 2, terms);
+			m[3] = parallel_continuant_new(mid + 2, t, (mid + t) / 2, terms);
+		};
 
 		if (available_threads > 0) {
 			available_threads--;
-			wait_for_th[0] = true;
-
-			ret_th[0] = std::async(parallel_continuant_new, s, mid, (s + mid) / 2, terms);
+			th = std::thread(new_thread_func);
 		}
-		else m[0] = parallel_continuant_new(s, mid, (s + mid) / 2, terms);
+		else new_thread_func();
 
-		if (available_threads > 0) {
+		m[0] = parallel_continuant_new(s, mid, (s + mid) / 2, terms);
+		m[2] = parallel_continuant_new(s, mid - 1, (s + mid) / 2, terms);
+
+		if (th.joinable()) {
+			th.join();
+			available_threads++;
+		}
+
+		mpz_class ret1, ret2;
+		if (available_threads) {
 			available_threads--;
-			wait_for_th[1] = true;
-
-			ret_th[1] = std::async(parallel_continuant_new, mid + 1, t, (mid + t) / 2, terms);
+			th = std::thread(mpz_addmul, ret1.get_mpz_t(), m[0].get_mpz_t(), m[1].get_mpz_t());
 		}
-		else m[1] = parallel_continuant_new(mid + 1, t, (mid + t) / 2, terms);
+		else mpz_addmul(ret1.get_mpz_t(), m[0].get_mpz_t(), m[1].get_mpz_t());
+		
+		mpz_addmul(ret2.get_mpz_t(), m[2].get_mpz_t(), m[3].get_mpz_t());
 
-		if (available_threads > 0) {
-			available_threads--;
-			wait_for_th[2] = true;
-
-			ret_th[2] = std::async(parallel_continuant_new, s, mid - 1, (s + mid) / 2, terms);
+		if (th.joinable()) {
+			th.join();
+			available_threads++;
 		}
-		else m[2] = parallel_continuant_new(s, mid - 1, (s + mid) / 2, terms);
 
-		m[3] = parallel_continuant_new(mid + 2, t, (mid + t) / 2, terms);
-
-		for (int i = 0; i < 3; ++i)
-			if (wait_for_th[i]) {
-				m[i] = ret_th[i].get();
-				available_threads++;
-			}
-
-		/*mu.lock();
-		mpz_class u1(table[{s, mid    }]), u2(table[{mid + 1, t}]),
-			b1(table[{s, mid - 1}]), b2(table[{mid + 2, t}]);
-		mu.unlock();*/
-
-		mpz_addmul(ret.get_mpz_t(), m[0].get_mpz_t(), m[1].get_mpz_t());
-		mpz_addmul(ret.get_mpz_t(), m[2].get_mpz_t(), m[3].get_mpz_t());
+		mpz_add(ret.get_mpz_t(), ret1.get_mpz_t(), ret2.get_mpz_t());
 	}
 
+	mu.lock();
 	if (table_hit[{s, t}] > 0) {
-		mu.lock();
 		table[{s, t}] = ret;
-		mu.unlock();
 	}
+	mu.unlock();
 
 	return ret;
 }
@@ -248,7 +241,7 @@ mpz_class continuant(size_t s, size_t t, const CFTerms& terms, size_t split_poin
 	using namespace ContinuantCache;
 
 	//dummy_run(s, t, mid);
-	return continuant_new(s, t, mid, terms);
+	return parallel_continuant_new(s, t, mid, terms);
 	/*if (t - s > Params::ContinuantUseParallel && available_threads >= 3)
 		return parallel_continuant(s, t, terms, split_point);
 
@@ -283,5 +276,6 @@ mpz_class parallel_continuant(size_t s, size_t t, const CFTerms& terms, size_t s
 void ContinuantCache::clear() {
 	table.clear();
 	table_hit.clear();
-	available_threads = std::thread::hardware_concurrency() / 2 - 1;
+
+	available_threads = std::thread::hardware_concurrency() - 1;
 }

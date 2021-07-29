@@ -4,13 +4,14 @@
 #include <thread>
 #include <fstream>
 #include <filesystem>
+#include <sstream>
 
 int main() {
-  std::cout << "Zuuv - Multi-precision Floating-point to Continued Fraction Cruncher" << std::endl;
+  std::cout << "Zuuv [EXPERIMENTAL] - Multi-precision Floating-point to Continued Fraction Cruncher" << std::endl;
   std::cout << "Version: v1.0 BETA (released 11/Apr/21) | Syed Fahad ( sydfhd AT gmail.com )\n";
 
   std::cout << "Detected " << std::thread::hardware_concurrency() / 2
-    << " cores | hyperthreading disabled" << std::endl;
+    << " cores" << std::endl;
 
   std::filesystem::create_directory("iterations");
   std::filesystem::create_directory("disk_mpz");
@@ -122,15 +123,22 @@ prompt:
     case 6:
     {
       std::cout << std::endl;
-      unsigned long long int max = 0;
+      std::cout << "\tTerm | Position" << std::endl;
+      unsigned long long int max = 0, term_n = 1;
+      
       for (int i = 1;; ++i) {
-        if (!std::filesystem::exists("iterations/iteration" + std::to_string(i) + ".txt")) break;
+        if (!std::filesystem::exists("iterations/iteration" + std::to_string(i) + ".txt"))
+          break;
 
         std::fstream file("iterations/iteration" + std::to_string(i) + ".txt");
-        unsigned long long int c;
+        std::stringstream buffer;
+        buffer << file.rdbuf();
 
-        while (file >> c)
-          if (c > max) { max = c; std::cout << max << " " << std::flush; }
+        for (unsigned long long int term; buffer >> term; term_n++)
+          if (term > max) {
+            max = term;
+            std::cout << "\t" << max << " | " << term_n << std::endl;
+          }
       }
 
       std::cout << std::endl;

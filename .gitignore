@@ -1,0 +1,13 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs
+/source/.vs/Zuuv/v16
+/source/x64/Debug
+/source/Zuuv.vcxproj.user
+/source/Zuuv.vcxproj.filters
+/source/Zuuv.vcxproj
+/source/Zuuv.sln
+/source/mpir.dll
+/CppProperties.json
