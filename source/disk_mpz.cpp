@@ -1,5 +1,6 @@
 #include "disk_mpz.h"
 #include "utils.h"
+#include "mul.h"
 #include <fstream>
 #include <iostream>
 #include <exception>
@@ -181,17 +182,22 @@ disk_mpz disk_mpz::mul(mpz_class m, std::string mul_name) const
 }
 
 
-disk_mpz disk_mpz::cross_mult_sub(std::string name, size_t bytes_per_file,
-  const disk_mpz& a, const mpz_class& a1, const disk_mpz& b, const mpz_class& b1)
+disk_mpz disk_mpz::cross_mult_sub(std::string name,
+  const disk_mpz& a, const mpz_class& a1, const disk_mpz& b, const mpz_class& b1,
+  size_t bytes_per_file, size_t threads)
 {
   disk_mpz res(name, bytes_per_file);
 
-  mpz_class carry(0), m;
+  mpz_class carry(0), m, tmp;
   for (size_t i = 0; i < std::max(a.files(), b.files()); ++i) {
     // m = (a.mpz_at(i) * a1 - b.mpz_at(i) * b1) + carry;
     m = carry;
-    mpz_addmul(m.get_mpz_t(), a.mpz_at(i).get_mpz_t(), a1.get_mpz_t());
-    mpz_submul(m.get_mpz_t(), b.mpz_at(i).get_mpz_t(), b1.get_mpz_t());
+    //mpz_addmul(m.get_mpz_t(), a.mpz_at(i).get_mpz_t(), a1.get_mpz_t());
+    multiplication::mul(tmp.get_mpz_t(), a.mpz_at(i).get_mpz_t(), a1.get_mpz_t(), threads);
+    m += tmp;
+    //mpz_submul(m.get_mpz_t(), b.mpz_at(i).get_mpz_t(), b1.get_mpz_t());
+    multiplication::mul(tmp.get_mpz_t(), b.mpz_at(i).get_mpz_t(), b1.get_mpz_t(), threads);
+    m -= tmp;
 
     // carry = m / 2 ^ (8 * bytes_per_file)
     //     m = m % 2 ^ (8 * bytes_per_file)
@@ -205,40 +211,6 @@ disk_mpz disk_mpz::cross_mult_sub(std::string name, size_t bytes_per_file,
     res.pushback_mpz(carry);
 
   res.canonicalize();
-
-  return res;
-}
-
-disk_mpz disk_mpz::mt_cross_mult_sub(std::string name, size_t bytes_per_file, size_t nthreads,
-  const disk_mpz& a, const mpz_class& a1, const disk_mpz& b, const mpz_class& b1, bool verbose)
-{
-  disk_mpz res(name, bytes_per_file);
-
-  auto mul_sub = [&](size_t start, size_t end)
-  {
-    mpz_class m;
-    for (size_t i = start; i < end; ++i) {
-      // m = (a.mpz_at(i) * a1 - b.mpz_at(i) * b1)
-      mpz_mul(m.get_mpz_t(), a.mpz_at(i).get_mpz_t(), a1.get_mpz_t());
-      mpz_submul(m.get_mpz_t(), b.mpz_at(i).get_mpz_t(), b1.get_mpz_t());
-
-      res.set_mpz(i, m, false);
-    }
-  };
-
-  std::vector<std::thread> threads(nthreads - 1);
-  float files = (float)std::max(a.files(), b.files());
-
-  for (size_t j = 1; j < nthreads; ++j)
-    threads[j - 1] = std::thread(mul_sub,
-      size_t(float(j) * files / nthreads), size_t((j+1.) * files / nthreads));
-
-  mul_sub(0, (size_t)(files / nthreads));
-
-  for (auto& th : threads)
-    th.join();
-
-  res.mt_canonicalize();
 
   return res;
 }
@@ -377,7 +349,6 @@ disk_mpz::~disk_mpz()
 {
 }
 
-// FIXME Just rename the files
 void disk_mpz_move(disk_mpz& to, disk_mpz& from)
 {
   while (to.files() > 0)

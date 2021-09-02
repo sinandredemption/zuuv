@@ -10,9 +10,6 @@
 #include <thread>
 #include <filesystem>
 
-
-size_t _cf_terms_file_idx = 1;
-
 void basecase_reg_cf_terms(const mpz_class& num, const mpz_class& den, CFTerms& out, bool half) {
 	mpz_class r, N(num), D(den), s;
 	mpz_class* n = &N, * d = &D;
@@ -31,6 +28,36 @@ void basecase_reg_cf_terms(const mpz_class& num, const mpz_class& den, CFTerms& 
 
 		std::swap(n, d);
 	}
+}
+
+int perform_correction(mpz_class& num, mpz_class& den, CFTermList& c) {
+	int corrections = 0;
+	while (mpz_sgn(num.get_mpz_t()) < 0 || mpz_sgn(den.get_mpz_t()) < 0 || (num < den)) {
+		corrections++;
+		mpz_swap(num.get_mpz_t(), den.get_mpz_t());
+
+		if (mpz_sgn(den.get_mpz_t()) < 0) {
+			assert(num > 0);
+			mpz_neg(num.get_mpz_t(), num.get_mpz_t());
+			mpz_neg(den.get_mpz_t(), den.get_mpz_t());
+		}
+
+		if (c.list.empty()) {
+			uint64_t lastterm;
+			std::ifstream cfterms_file(c.get_filename(), std::ios::in | std::ios::binary);
+			cfterms_file.seekg((c.terms_on_disk - corrections) * sizeof(uint64_t));
+			cfterms_file.read((char*)&lastterm, sizeof(uint64_t));
+			mpz_addmul_ui(num.get_mpz_t(), den.get_mpz_t(), lastterm);
+		}
+		else {
+			mpz_addmul_ui(num.get_mpz_t(), den.get_mpz_t(), c.list.back());
+			c.list.pop_back();
+
+			if (c.list.empty())
+				return corrections;
+		}
+	}
+	return corrections;
 }
 
 CFTermList reg_cf_terms(const mpz_class& num, const mpz_class& den, bool calc_convergents, bool half) {
@@ -57,7 +84,6 @@ CFTermList reg_cf_terms(const mpz_class& num, const mpz_class& den, bool calc_co
 	if (upperhalf_cf_terms.list.size() > Params::CFTermsUseDisk)
 		upperhalf_cf_terms.offload();
 	
-
 	// Determine correction fraction
 	// Numerator = b * p_{k-1} - a * q_{k-1}
 	// Denomenator = a * q_k - b * p_k
@@ -210,37 +236,6 @@ CFTermList reg_cf_terms(const mpz_class& num, const mpz_class& den, bool calc_co
 	return upperhalf_cf_terms;
 }
 
-int perform_correction(mpz_class& num, mpz_class& den, CFTermList& c) {
-	int corrections = 0;
-	while (mpz_sgn(num.get_mpz_t()) < 0 || mpz_sgn(den.get_mpz_t()) < 0 || (num < den)) {
-		corrections++;
-		mpz_swap(num.get_mpz_t(), den.get_mpz_t());
-
-		if (mpz_sgn(den.get_mpz_t()) < 0) {
-			assert(num > 0);
-			mpz_neg(num.get_mpz_t(), num.get_mpz_t());
-			mpz_neg(den.get_mpz_t(), den.get_mpz_t());
-		}
-
-		
-		if (c.list.empty()) {
-			uint64_t lastterm;
-			std::ifstream cfterms_file(c.get_filename(), std::ios::in | std::ios::binary);
-			cfterms_file.seekg((c.terms_on_disk - corrections ) * sizeof(uint64_t));
-			cfterms_file.read((char*)&lastterm, sizeof(uint64_t));
-			mpz_addmul_ui(num.get_mpz_t(), den.get_mpz_t(), lastterm);
-		}
-		else {
-			mpz_addmul_ui(num.get_mpz_t(), den.get_mpz_t(), c.list.back());
-			c.list.pop_back();
-
-			if (c.list.empty())
-				return corrections;
-		}
-	}
-	return corrections;
-}
-
 void crunch_reg_cf_terms(std::string file, size_t terms) {
 	int c = 0;
 	while (c < 1 || c > 2) {
@@ -388,12 +383,9 @@ void crunch_reg_cf_terms_on_disk(std::string file, size_t terms, size_t bytes_pe
 			size_t nfiles = frac.get_num().files() + frac.get_den().files();
 
 			double t = wall_clock();
-			disk_mpz c_num(nthreads == 1 ?
-				disk_mpz::cross_mult_sub("corr_num", bytes_per_file,
-				frac.get_den(), convergents.p_k1, frac.get_num(), convergents.q_k1)
-			: disk_mpz::mt_cross_mult_sub("corr_num", bytes_per_file, nthreads,
-				frac.get_den(), convergents.p_k1, frac.get_num(), convergents.q_k1));
-
+			disk_mpz c_num(disk_mpz::cross_mult_sub("corr_num",
+				frac.get_den(), convergents.p_k1, frac.get_num(), convergents.q_k1,
+					bytes_per_file, nthreads));
 
 			std::cerr.precision(4);
 			double end_t = wall_clock() - t;
@@ -401,11 +393,9 @@ void crunch_reg_cf_terms_on_disk(std::string file, size_t terms, size_t bytes_pe
 				<< (bytes_per_file * nfiles) / (1024. * 1.024 * end_t) << "MB/s)...";
 
 			t = wall_clock();
-			disk_mpz c_den(nthreads == 1 ?
-				disk_mpz::cross_mult_sub("corr_den", bytes_per_file,
-				frac.get_num(), convergents.q_k, frac.get_den(), convergents.p_k)
-			: disk_mpz::mt_cross_mult_sub("corr_den", bytes_per_file, nthreads,
-				frac.get_num(), convergents.q_k, frac.get_den(), convergents.p_k));
+			disk_mpz c_den(disk_mpz::cross_mult_sub("corr_den",
+				frac.get_num(), convergents.q_k, frac.get_den(), convergents.p_k,
+				bytes_per_file, nthreads));
 			end_t = wall_clock() - t;
 
 			std::cerr << "\t" << int(end_t) << "ms (num, \t"
@@ -495,9 +485,10 @@ void CFTermList::update(bool single_term) {
 
 void CFTermList::offload()
 {
+	static size_t cf_terms_file_idx = 1;
 	terms_on_disk = list.size();
 	if (idx == 0)
-		idx = _cf_terms_file_idx++;
+		idx = cf_terms_file_idx++;
 
 	std::ofstream cfterms_file(get_filename(),
 		std::ios::binary | std::ios::out);

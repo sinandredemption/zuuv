@@ -10,20 +10,24 @@ int main() {
   std::cout << "Zuuv [EXPERIMENTAL] - Multi-precision Floating-point to Continued Fraction Cruncher" << std::endl;
   std::cout << "Version: v1.0 BETA (released 11/Apr/21) | Syed Fahad ( sydfhd AT gmail.com )\n";
 
-  std::cout << "Detected " << std::thread::hardware_concurrency() / 2
-    << " cores" << std::endl;
+  std::cout << "Using " << std::thread::hardware_concurrency() << " threads" << std::endl;
 
   std::filesystem::create_directory("iterations");
   std::filesystem::create_directory("disk_mpz");
 
 prompt:
   std::cout << std::endl;
-  std::cout << "1 - Start a new computation" << std::endl;
-  std::cout << "2 - Resume an existing computation\n" << std::endl;
-  std::cout << "3 - Benchmark Continued Fraction Cruncher" << std::endl;
-  std::cout << "4 - Benchmark Continuant Cruncher" << std::endl;
-  std::cout << "5 - Benchmark Disk-based Multiplication\n" << std::endl;
-  std::cout << "6 - View incrementally largest terms in computed iterations" << std::endl;
+
+  std::cout << "1 - Start a new computation"                                 << std::endl;
+  std::cout << "2 - Resume an existing computation"             << std::endl << std::endl;
+
+  std::cout << "3 - Benchmark continued fraction cruncher"                   << std::endl;
+  std::cout << "4 - Benchmark continuant cruncher"                           << std::endl;
+  std::cout << "5 - Benchmark disk-based multiplication"                     << std::endl;
+  std::cout << "6 - Benchmark RAM-based multiplication"         << std::endl << std::endl;
+
+  std::cout << "7 - View incrementally largest terms in computed iterations" << std::endl;
+
   std::cout << "\nEnter your choice: ";
   int choice;
   std::cin >> choice;
@@ -33,7 +37,7 @@ prompt:
     {
     case 1:
     {
-      uint64_t terms = 0;
+      size_t terms = 0;
       while (terms == 0) {
         std::cout << "Enter # terms: ";
         std::cin >> terms;
@@ -70,9 +74,7 @@ prompt:
 
         std::cout << "WARNING: The file must contain hexadecimal digits.\n"
           << "Decimal digits for disk-based computations are not yet supported.\n" << std::endl;
-        //std::cout << "Enter number of threads to use: ";
-        size_t nthreads = std::thread::hardware_concurrency() / 2;
-        //std::cin >> nthreads;
+        size_t nthreads = std::thread::hardware_concurrency();
 
         crunch_reg_cf_terms_on_disk(file, terms, bytes_per_file, nthreads);
       }
@@ -117,10 +119,15 @@ prompt:
     }
     case 5:
     {
-      benchmark_mult();
+      benchmark_disk_mul();
       break;
     }
     case 6:
+    {
+      benchmark_ram_mul();
+      break;
+    }
+    case 7:
     {
       std::cout << std::endl;
       std::cout << "\tTerm | Position" << std::endl;
