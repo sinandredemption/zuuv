@@ -38,11 +38,9 @@ public:
   disk_mpz sub(const disk_mpz&, std::string) const;
 
   // Compute a * a1 - b * b1
-  static disk_mpz cross_mult_sub(std::string, size_t,
-    const disk_mpz& a, const mpz_class& a1, const disk_mpz& b, const mpz_class& b1);
-  // Uses multi-threading
-  static disk_mpz mt_cross_mult_sub(std::string, size_t, size_t nthreads,
-    const disk_mpz& a, const mpz_class& a1, const disk_mpz& b, const mpz_class& b1, bool verbose = false);
+  static disk_mpz cross_mul_sub(std::string name,
+    const disk_mpz& a, const mpz_class& a1, const disk_mpz& b, const mpz_class& b1,
+    size_t bytes_per_file, size_t threads = 0);
 
   std::string getname() const { return name; }
   std::string get_filename(size_t n) const { return std::string(SubDir) + name + "_" + std::to_string(n); }
@@ -53,10 +51,12 @@ public:
   int sign() const { return sgn; }
   std::string get_top() const { return digit_files[digit_files.size() - 1]; }
   mpz_class get_top_mpz() const { return read_mpz(digit_files.back()); }
-  mpz_class get_top2_mpz() const; // Returns top 2 mpz combined (or get_top_mpz() if files() == 1)
+  mpz_class get_top2_mpz() const;
   void pop_top() { remove(get_top().c_str()); digit_files.pop_back(); }
   mpz_class to_mpz() const; // Useful for debugging
   mpz_class value() const;  // Useful for debugging
+
+  void destroy() { while (digit_files.size()) pop_top(); }
 
   disk_mpz(std::string name_, size_t bytes_per_file_)
     : name(name_), bytes_per_file(bytes_per_file_), sgn(0) {}
@@ -81,6 +81,7 @@ public:
   disk_mpz& get_den() { return den; }
   const disk_mpz& get_den() const { return den; }
 
+  void destroy() { num.destroy(); den.destroy(); }
   // -- DEBUG
   double get_d() const {
     return mpq_class(disk_mpz::read_mpz(num.get_top()), disk_mpz::read_mpz(den.get_top())).get_d();
