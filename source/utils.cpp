@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "params.h"
 #include <sstream>
 #include <fstream>
 #include <iterator>
@@ -14,13 +15,15 @@ mpz_class mpz_rand(size_t bytes) {
 	mpz_class out;
 	size_t length = bytes / 8;
 	auto ptr = mpz_limbs_write(out.get_mpz_t(), length);
-	for (int i = 0; i < length; ++i) {
-		unsigned long long rand64 = rand();
-		rand64 = (rand64 << 15) | rand();
-		rand64 = (rand64 << 15) | rand();
-		rand64 = (rand64 << 15) | rand();
-		rand64 = (rand64 << 15) | rand();
-		ptr[i] = rand64;
+	for (int i = 0; i < length; ++i)
+	{
+		static uint64_t x = 0x314159265358979ULL;
+
+		x ^= x << 13;
+		x ^= x >> 7;
+		x ^= x << 17;
+
+		ptr[i] = x;
 	}
 	mpz_limbs_finish(out.get_mpz_t(), length);
 	return out;
@@ -48,3 +51,107 @@ bool file_exists(std::string filename)
 	return file.good();
 }
 
+size_t peak_ram_usage(size_t fraction_size)
+{
+	return fraction_size * Params::RAMUsagePerMBofFraction + Params::BaselineRAMUsage;
+}
+
+uint64_t parse_shorthand_num(std::string str)
+{
+	std::stringstream ss;
+	ss << str.substr(0, str.size() - 1);
+
+	if (std::isalpha(str[str.size() - 1]))
+	{
+		double n;
+		ss >> n;
+
+		switch (str[str.size() - 1])
+		{
+		case 'K':
+		case 'k':
+			return static_cast<uint64_t>(n * 1e3);
+			break;
+		case 'm':
+		case 'M':
+			return static_cast<uint64_t>(n * 1e6);
+			break;
+		case 'b':
+		case 'B':
+			return static_cast<uint64_t>(n * 1e9);
+			break;
+		case 't':
+		case 'T':
+				return static_cast<uint64_t>(n * 1e12);
+				break;
+		default:
+			return 0;
+			break;
+		}
+	}
+	else
+	{
+		uint64_t n;
+		ss >> n;
+
+		return n;
+	}
+}
+
+std::string format_time(double time_ms)
+{
+	std::stringstream ss;
+	int d, h, m, s, ms;
+	d = h = m = s = ms = 0;
+
+	if (time_ms < 1000)
+	{
+		ms = (int)time_ms;
+	}
+	else if (time_ms < 60 * 1000)	// One minute
+	{
+		s = time_ms / 1000;
+		ms = time_ms - 1000 * s;
+	}
+	else if (time_ms < 60 * 60 * 1000)	// One hour
+	{
+		s = time_ms / 1000;
+		ms = time_ms - 1000 * s;
+
+		m = s / 60;
+		s -= m * 60;
+	}
+	else if (time_ms < 24 * 60 * 60 * 1000) // One day
+	{
+		s = time_ms / 1000;
+		ms = time_ms - 1000 * s;
+
+		int m = s / 60;
+		s -= m * 60;
+
+		h = m / 60;
+		m -= h * 60;
+	}
+	else
+	{
+		s = time_ms / 1000;
+		ms = time_ms - 1000 * s;
+
+		int m = s / 60;
+		s -= m * 60;
+
+		h = m / 60;
+		m -= h * 60;
+
+		d = h / 24;
+		h -= 24 * d;
+	}
+
+	if (d)  ss << d  << "d ";
+	if (h)  ss << h  << "h ";
+	if (m)  ss << m  << "m ";
+	if (s)  ss << s  << "s ";
+	if (ms) ss << ms << "ms";
+
+	return ss.str();
+}

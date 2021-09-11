@@ -5,7 +5,6 @@
 
 void read_from_file(mpq_class* frac, std::string file_name, bool dec)
 {
-	std::cout << "Reading from file: " << file_name << "...";
 	std::ifstream file(file_name);
 
 	if (!file)
@@ -23,13 +22,8 @@ void read_from_file(mpq_class* frac, std::string file_name, bool dec)
 
 	file.close();
 
-	std::cout << " dec digits: \t" << mpz_sizeinbase(frac->get_num_mpz_t(), 10)
-		<< " | hex digits: \t" << mpz_sizeinbase(frac->get_num_mpz_t(), 16) << std::endl;
-
 	frac->get_den() = 1;
 	frac->get_den() <<= mpz_sizeinbase(frac->get_num_mpz_t(), 2) - 2;
-
-	std::cout << "Reading completed. Fraction ~= " << frac->get_d() << std::endl;
 }
 
 void output_cf_terms_list(const CFTerms& cf_term_list, std::string file_name, bool verbose) {

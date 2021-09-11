@@ -12,12 +12,13 @@ typedef struct { mpz_class first, second; } mpz_pair;
 namespace ContinuantCache {
 	void clear();
 
-	void dummy_run(size_t s, size_t t, size_t mid);
+	void build_cache_indices(size_t s, size_t t, size_t mid);
 	mpz_class single_threaded_continuant(size_t s, size_t t, size_t mid, const CFTerms& terms);
 	mpz_class multi_threaded_continuant (size_t s, size_t t, size_t mid, const CFTerms& terms);
 }
 
 mpz_class continuant(size_t s, size_t t, const CFTerms&, size_t split_point = 0);
+void combine_continuants(CFTermList::Continuants& upperhalf, const CFTermList::Continuants& lowerhalf, bool only_two = false);
 
 // TODO Replace mpz_addmul with mpn_addmul
 // Returns { continuant(s, t), continuant(s, t - 1) }

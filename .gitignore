@@ -7,9 +7,67 @@
 /source/x64/Debug
 /source/Zuuv.vcxproj.user
 /source/Zuuv.vcxproj.filters
-/source/Zuuv.vcxproj
-/source/Zuuv.sln
-/source/mpir.dll
 /CppProperties.json
-/source/x64/Release
 /source/disk_mpz
+/source/iterations
+/source/x64/Release [Legacy]
+/source/x64/Release [Legacy]
+/source/x64/Release [Legacy]/Zuuv.tlog
+/source/x64/Release [Legacy]/Zuuv.tlog
+/source/x64/Release [Legacy]/vc142.pdb
+/source/x64/Release [Legacy]/utils.obj
+/source/x64/Release [Legacy]/mul.obj
+/source/x64/Release [Legacy]/io.obj
+/source/x64/Release [Legacy]/disk_mpz.obj
+/source/x64/Release [Legacy]/cruncher.obj
+/source/x64/Release [Legacy]/continuant.obj
+/source/x64/Release [Legacy]/benchmark.obj
+/source/x64/Release [Legacy]/Zuuv.tlog
+/source/x64/Release [Legacy]/vc142.pdb
+/source/x64/Release [Legacy]/utils.obj
+/source/x64/Release [Legacy]/mul.obj
+/source/x64/Release [Legacy]/io.obj
+/source/x64/Release [Legacy]/disk_mpz.obj
+/source/x64/Release [Legacy]/cruncher.obj
+/source/x64/Release [Legacy]/continuant.obj
+/source/x64/Release [Legacy]/benchmark.obj
+/source/x64/Release [Legacy]/Zuuv.vcxproj.FileListAbsolute.txt
+/source/x64/Release [Legacy]/Zuuv.pdb
+/source/x64/Release [Legacy]/zuuv.obj
+/source/x64/Release [Legacy]/Zuuv.log
+/source/x64/Release [Legacy]/Zuuv.ilk
+/source/x64/Release [Legacy]/Zuuv.exe.recipe
+/source/golden_ratio_104m_hex.txt
+/source/pi_cf_100m.txt
+/source/pi_10m_hex.txt
+/source/pi_100m_hex.txt
+/source/pi_100k_hex.txt
+/source/x64/Release/Zuuv.tlog
+/source/x64/Release/ymp_mul.obj
+/source/x64/Release/vc142.pdb
+/source/x64/Release/utils.obj
+/source/x64/Release/mul.obj
+/source/x64/Release/io.obj
+/source/x64/Release/disk_mpz.obj
+/source/x64/Release/cruncher.obj
+/source/x64/Release/continuant.obj
+/source/x64/Release/benchmark.obj
+/source/x64/Release/Zuuv.vcxproj.FileListAbsolute.txt
+/source/x64/Release/Zuuv.pdb
+/source/x64/Release/zuuv.obj
+/source/x64/Release/Zuuv.log
+/source/x64/Release/Zuuv.ilk
+/source/x64/Release/Zuuv.exe.recipe
+/source/x64/Release [Legacy]/Zuuv.tlog
+/source/x64/Release [Legacy]/benchmark.obj
+/source/x64/Release [Legacy]/Zuuv.vcxproj.FileListAbsolute.txt
+/source/x64/Release [Legacy]/Zuuv.pdb
+/source/x64/Release [Legacy]/zuuv.obj
+/source/x64/Release [Legacy]/Zuuv.log
+/source/x64/Release [Legacy]/Zuuv.ilk
+/source/x64/Release [Legacy]/Zuuv.exe.recipe
+/source/zuuv.txt
+/source/temp
+/source/x64/Release [Legacy]/Zuuv.tlog
+/source/x64/Release [Legacy]/Zuuv.tlog
+/source/x64/Release [Legacy]/Zuuv.tlog
