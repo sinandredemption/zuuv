@@ -161,14 +161,22 @@ void disk_mpz::mt_canonicalize()
 // Multiply by m, and return result
 disk_mpz disk_mpz::mul(mpz_class m, std::string mul_name) const
 {
-  disk_mpz result(mul_name, bytes_per_file);
+    disk_mpz result(mul_name, bytes_per_file);
+
+    if (m == 0) {
+        result.pushback_zero();
+        return result;
+   }
 
   mpz_class carry(0);
   for (auto digit_file : digit_files)
   {
     assert(carry < m);
 
-    mpz_class m2 = read_mpz(digit_file) * m + carry;
+    //mpz_class m2 = read_mpz(digit_file) * m + carry;
+    mpz_class m2;
+    multiplication::mul(m2.get_mpz_t(), read_mpz(digit_file).get_mpz_t(), m.get_mpz_t());
+    m2 += carry;
     // carry = m2 / 2 ^ (8 * bytes_per_file)
     mpz_tdiv_q_2exp(carry.get_mpz_t(), m2.get_mpz_t(), 8 * bytes_per_file);
     // m2 % 2 ^ (8 * bytes_per_file)
@@ -183,6 +191,65 @@ disk_mpz disk_mpz::mul(mpz_class m, std::string mul_name) const
   return result;
 }
 
+disk_mpz disk_mpz::karatsuba_mul(std::string name, const disk_mpz& a, const disk_mpz& b)
+{
+    assert(a.bytes_per_file == b.bytes_per_file);
+    auto bytes_per_file = a.bytes_per_file;
+
+    if (a.files() == 1) return b.mul(a.mpz_at(0), name);
+    if (b.files() == 1) return a.mul(b.mpz_at(0), name);
+
+    if (a.files() == 2 && b.files() == 2)
+    {
+        disk_mpz res(name, bytes_per_file);
+        res.pushback_mpz(a.mpz_at(0) * b.mpz_at(0));
+        res.pushback_mpz(a.mpz_at(1) * b.mpz_at(0) + b.mpz_at(1) * a.mpz_at(0));
+        res.pushback_mpz(a.mpz_at(1) * b.mpz_at(1));
+        res.mt_canonicalize();
+        return res;
+    }
+
+    size_t end = std::max(a.files(), b.files());
+	size_t mid = end / 2;
+
+	disk_mpz x0(rand_filename(), bytes_per_file), y0(rand_filename(), bytes_per_file);
+	for (size_t i = 0; i < mid; ++i) {
+		x0.pushback_mpz(a.mpz_at(i));
+		y0.pushback_mpz(b.mpz_at(i));
+	}
+
+	disk_mpz x1(rand_filename(), bytes_per_file), y1(rand_filename(), bytes_per_file);
+	for (size_t i = mid; i < end; ++i) {
+		x1.pushback_mpz(a.mpz_at(i));
+		y1.pushback_mpz(b.mpz_at(i));
+	}
+
+	disk_mpz z2 = karatsuba_mul(rand_filename(), x1, y1);
+	disk_mpz z0 = karatsuba_mul(rand_filename(), x0, y0);
+	disk_mpz_move(x1, x1.add(x0));
+	disk_mpz_move(y1, y1.add(y0));
+
+	disk_mpz z1 = karatsuba_mul(rand_filename(), x1, y1);
+    x0.destroy();
+    x1.destroy();
+	y0.destroy();
+	y1.destroy();
+
+	disk_mpz_move(z1, z1.sub(z2));
+	disk_mpz_move(z1, z1.sub(z0));
+
+	disk_mpz result(name, bytes_per_file);
+
+	// Recombine
+	for (int i = 0; i < a.files() + b.files(); ++i)
+		result.pushback_mpz(z0.mpz_at(i) + z1.mpz_at(i - mid) + z2.mpz_at(i - 2 * mid));
+
+    z0.destroy();
+    z1.destroy();
+    z2.destroy();
+
+    return result;
+}
 
 disk_mpz disk_mpz::cross_mul_sub(std::string name,
   const disk_mpz& a, const mpz_class& a1, const disk_mpz& b, const mpz_class& b1,
@@ -219,9 +286,48 @@ disk_mpz disk_mpz::cross_mul_sub(std::string name,
   return res;
 }
 
-disk_mpz disk_mpz::sub(const disk_mpz& s, std::string sub_name) const
+disk_mpz disk_mpz::add(const disk_mpz& op, std::string name) const
 {
-  disk_mpz result(sub_name, bytes_per_file);
+    if (name == "")
+        name = rand_filename();
+
+    disk_mpz result(name, bytes_per_file);
+
+  // Find the greater among two
+    if (sign() < 0 || op.sign() < 0)
+        assert(false);
+
+  // Perform subtraction
+  const mpz_class Base(mpz_class(1) << (8 * bytes_per_file));
+  bool carry = false;
+
+  for (size_t j = 0; j < std::max(files(), op.files()); ++j)
+  {
+    // TODO
+    mpz_class a = mpz_at(j) + op.mpz_at(j);
+    if (carry) a += 1;
+    carry = a > Base;
+    if (carry) a -= Base;
+
+    result.pushback_mpz(a);
+  }
+
+  if (carry)
+	  result.pushback_mpz(mpz_class(1));
+  else
+	  // Truncate leading zeroes
+	  while (result.get_top_mpz() == mpz_class(0))
+		  result.pop_top();
+
+  return result;
+}
+
+disk_mpz disk_mpz::sub(const disk_mpz& s, std::string name) const
+{
+    if (name == "")
+        name = rand_filename();
+
+  disk_mpz result(name, bytes_per_file);
 
   // Find the greater among two
   const disk_mpz *greater = NULL, *lesser = NULL;
@@ -239,6 +345,12 @@ disk_mpz disk_mpz::sub(const disk_mpz& s, std::string sub_name) const
       greater = this, lesser = &s;
       break;
     }
+  }
+
+  if (greater == NULL  || lesser == NULL)
+  {
+      result.pushback_zero();
+      return result;
   }
 
   // Perform subtraction

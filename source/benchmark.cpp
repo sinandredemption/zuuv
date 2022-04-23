@@ -211,6 +211,13 @@ void benchmark_disk_mul() {
   size_t threads = 0;
   size_t iters = 0;
   size_t ymp_or_mpir = 0;
+  enum
+  {
+      SIMPLE_MULTIPLICATION = 1,
+      CROSS_MULTIPLICATION,
+      INVALID_MULTIPLICATION
+  };
+  int mul_type = INVALID_MULTIPLICATION;
 
   while (nfiles == 0) {
     std::cout << "# of files: ";
@@ -229,6 +236,18 @@ void benchmark_disk_mul() {
     std::cout << "# of iterations: ";
     std::cin >> iters;
   }
+  while (mul_type >= INVALID_MULTIPLICATION) {
+      std::cout << "\n1 - Simple Multiplication\n2 - Cross Multiplication" << std::endl;
+      std::cout << "Multiplication type: ";
+      std::cin >> mul_type;
+  }
+
+  bool verify = false;
+  std::string c = "no";
+  std::cout << "Verify the computation? (y/N): ";
+  std::cin >> c;
+
+  if (c == "yes" || c == "y") verify = true;
 
   std::cout << "Benchmarking disk_mpz multiplication... ("<< threads << " threads)...";
   std::cout << std::endl << std::endl;
@@ -238,29 +257,69 @@ void benchmark_disk_mul() {
   for (size_t i = 1; i <= iters; ++i) {
     std::cout << "Iteration " << i << "/" << iters << "...";
 
-    disk_mpq frac("bench", "", bytes_per_file);
+    if (mul_type == SIMPLE_MULTIPLICATION) {
+        disk_mpz x("x", bytes_per_file), y("y", bytes_per_file);
 
-    for (size_t i = 0; i < nfiles; ++i) {
-      frac.get_den().pushback_mpz(mpz_rand(bytes_per_file));
-      frac.get_num().pushback_mpz(mpz_rand(bytes_per_file));
+        for (size_t i = 0; i < nfiles; ++i) {
+            x.pushback_mpz(mpz_rand(bytes_per_file));
+            y.pushback_mpz(mpz_rand(bytes_per_file));
+        }
+
+        double start = wall_clock();
+        disk_mpz res(disk_mpz::karatsuba_mul("result", x, y));
+        double end = wall_clock() - start;
+
+        total_time += end;
+        std::cout << "\n" << end << "ms | " <<
+            (nfiles * 2. * bytes_per_file * 1000.) / (end * 1024. * 1024.) << "MB/s" << std::endl;
+
+        if (verify) {
+            if (res.to_mpz() != x.to_mpz() * y.to_mpz()) {
+                std::cout << "[ERR] Verification failed!" << std::endl;
+            }
+            else {
+                std::cout << "Verification successful" << std::endl;
+            }
+        }
+        res.destroy();
+        x.destroy();
+        y.destroy();
+
+
+        std::cout << std::endl;
     }
+    else {
+        disk_mpq frac("bench", "", bytes_per_file);
 
-    mpz_class a = mpz_rand(bytes_per_file), b = mpz_rand(bytes_per_file);
+        mpz_class mpz_num, mpz_den;
+        for (size_t i = 0; i < nfiles; ++i) {
+            frac.get_den().pushback_mpz(mpz_rand(bytes_per_file));
+            frac.get_num().pushback_mpz(mpz_rand(bytes_per_file));
+        }
 
-    double start = wall_clock();
-    disk_mpz res(disk_mpz::cross_mul_sub("bench_result", frac.get_num(), a, frac.get_den(), b, bytes_per_file, threads));
-    double end = wall_clock() - start;
+        mpz_class a = mpz_rand(bytes_per_file), b = mpz_rand(bytes_per_file);
 
-    total_time += end;
-    std::cout << "\n" << end << "ms | " <<
-      (nfiles * 2. * bytes_per_file * 1000.) / (end * 1024. * 1024.) << "MB/s" << std::endl;
+        double start = wall_clock();
+        disk_mpz res(disk_mpz::cross_mul_sub("bench_result", frac.get_num(), a, frac.get_den(), b, bytes_per_file, threads));
+        double end = wall_clock() - start;
 
-    while (res.files() > 0)
-      res.pop_top();
+        total_time += end;
+        std::cout << "\n" << end << "ms | " <<
+            (nfiles * 2. * bytes_per_file * 1000.) / (end * 1024. * 1024.) << "MB/s" << std::endl;
 
-    std::cout << std::endl;
+        std::cout << std::endl;
 
-    frac.destroy();
+        if (verify) {
+            if ((frac.get_num().to_mpz() * a - frac.get_den().to_mpz() * b) != res.to_mpz())
+                std::cout << "[ERR] Verification failed";
+            else
+                std::cout << "Verification successful";
+            std::cout << std::endl;
+        }
+
+        frac.destroy();
+        res.destroy();
+    }
   }
 
   std::cout << "average = " << (iters * nfiles * 2. * bytes_per_file * 1000.) / (total_time * 1024. * 1024.) << "MB/s" << std::endl;

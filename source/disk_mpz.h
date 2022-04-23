@@ -35,12 +35,15 @@ public:
   void canonicalize();  // Truncate leading zereos and process boolean carries
   void mt_canonicalize(); // Canonicalize for Multi-threaded procedures with carries often > 1
   disk_mpz mul(mpz_class, std::string) const;
-  disk_mpz sub(const disk_mpz&, std::string) const;
-
+  disk_mpz sub(const disk_mpz&, std::string name = "") const;
+  disk_mpz add(const disk_mpz&, std::string name = "") const;
+  
   // Compute a * a1 - b * b1
   static disk_mpz cross_mul_sub(std::string name,
     const disk_mpz& a, const mpz_class& a1, const disk_mpz& b, const mpz_class& b1,
     size_t bytes_per_file, size_t threads = 0);
+  static disk_mpz mul(std::string name, const disk_mpz& a, const disk_mpz& b, size_t idx_start = 0, size_t idx_end = 0);
+  static disk_mpz karatsuba_mul(std::string name, const disk_mpz& a, const disk_mpz& b);
 
   std::string getname() const { return name; }
   std::string get_filename(size_t n) const { return std::string(SubDir) + name + "_" + std::to_string(n); }
@@ -65,6 +68,21 @@ public:
   // --- Helper functions ---
   friend void disk_mpz_move(disk_mpz&, disk_mpz&);
   static mpz_class read_mpz(std::string filename);
+
+  static std::string rand_filename()
+  {
+      std::string out;
+      // Generate a random filename (from https://codereview.stackexchange.com/questions/29198/random-string-generator-in-c)
+      const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+      int n = 0;
+      for (n = 0; n < 20; n++) {
+          int key = rand() % (int)(sizeof charset - 1);
+          out.push_back(charset[key]);
+      }
+
+      return out;
+  }
 };
 
 /*

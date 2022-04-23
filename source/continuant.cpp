@@ -103,7 +103,7 @@ mpz_class ContinuantCache::multi_threaded_continuant(size_t s, size_t t, size_t 
 	{
 		mpz_mul(ret.get_mpz_t(),
 			multi_threaded_continuant(      s, mid, (s + mid) / 2, terms).get_mpz_t(),
-      multi_threaded_continuant(mid + 1,   t, (mid + t) / 2, terms).get_mpz_t()
+		    multi_threaded_continuant(mid + 1,   t, (mid + t) / 2, terms).get_mpz_t()
 		);
 		mpz_addmul(ret.get_mpz_t(),
 			multi_threaded_continuant(      s, mid - 1, (s + mid) / 2, terms).get_mpz_t(),

@@ -51,9 +51,15 @@ bool file_exists(std::string filename)
 	return file.good();
 }
 
-size_t peak_ram_usage(size_t fraction_size)
+size_t peak_ram_usage(size_t split_size)
 {
-	return fraction_size * Params::RAMUsagePerMBofFraction + Params::BaselineRAMUsage;
+	return split_size * Params::RAMUsagePerMBofFraction + Params::BaselineRAMUsage;
+}
+
+size_t recommended_split_size()
+{
+	return size_t(0.9 * double(getTotalSystemMemoryMB() - Params::BaselineRAMUsage)
+		                            / Params::RAMUsagePerMBofFraction);
 }
 
 uint64_t parse_shorthand_num(std::string str)
@@ -96,6 +102,18 @@ uint64_t parse_shorthand_num(std::string str)
 
 		return n;
 	}
+}
+
+std::string print_shorthand_info()
+{
+	std::stringstream ss;
+
+	ss << "k = K = 1 000             (10^3)" << std::endl;
+	ss << "m = M = 1 000 000         (10^6)" << std::endl;
+	ss << "b = B = 1 000 000 000     (10^9)" << std::endl;
+	ss << "t = T = 1 000 000 000 000 (10^12)" << std::endl;
+
+	return ss.str();
 }
 
 std::string format_time(double time_ms)
@@ -155,3 +173,25 @@ std::string format_time(double time_ms)
 
 	return ss.str();
 }
+
+// Based on shameless copy paste from stackoverflow
+#ifdef _WIN32
+#include <windows.h>
+
+unsigned long long getTotalSystemMemoryMB()
+{
+    MEMORYSTATUSEX status;
+    status.dwLength = sizeof(status);
+    GlobalMemoryStatusEx(&status);
+    return status.ullTotalPhys / (1024*1024);
+}
+#elif defined(linux)
+#include <unistd.h>
+
+unsigned long long getTotalSystemMemoryMB()
+{
+    long pages = sysconf(_SC_PHYS_PAGES);
+    long page_size = sysconf(_SC_PAGE_SIZE);
+    return (pages * page_size) / (1024*1024);
+}
+#endif
