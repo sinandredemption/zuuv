@@ -370,15 +370,15 @@ void crunch_reg_cf_expansion(std::string file, size_t terms)
 	std::cin.get();
 }
 
-void crunch_reg_cf_expansion_on_disk(std::string file, size_t terms, size_t bytes_per_file, size_t nthreads)
+void crunch_reg_cf_expansion_on_disk(std::string file, size_t terms, size_t nthreads)
 {
 	bool resuming_computation = file == "";
 
 	if (!resuming_computation)
 		std::cerr << "Computing " << terms << " terms from file '" << file << "' using "
-		<< (double)bytes_per_file / (1024 * 1024) << "MB/file" << std::endl;
+		<< (double)disk_mpz::SplitSize / (1024 * 1024) << "MB/file" << std::endl;
 	else
-		std::cerr << "Resuming computation of " << terms << " terms using " << (double)bytes_per_file / (1024. * 1024.) <<
+		std::cerr << "Resuming computation of " << terms << " terms using " << (double)disk_mpz::SplitSize / (1024. * 1024.) <<
 		"MB/file" << std::endl;
 
 	int iteration = 1;
@@ -402,7 +402,7 @@ void crunch_reg_cf_expansion_on_disk(std::string file, size_t terms, size_t byte
 
 	double session_time = wall_clock();
 
-	disk_mpq frac("frac", file, bytes_per_file);
+	disk_mpq frac("frac", file);
 
 	std::cout << std::endl;
 
@@ -421,7 +421,7 @@ void crunch_reg_cf_expansion_on_disk(std::string file, size_t terms, size_t byte
 		mpz_class den = frac.get_den().get_top2_mpz();
 
 		// Shift the numerator and denominator so as to convert them into standard size
-		size_t shift = mpz_sizeinbase(num.get_mpz_t(), 2) - (bytes_per_file * 8);
+		size_t shift = mpz_sizeinbase(num.get_mpz_t(), 2) - (disk_mpz::SplitSize * 8);
 		num >>= shift;
 		den >>= shift;
 
@@ -452,19 +452,19 @@ void crunch_reg_cf_expansion_on_disk(std::string file, size_t terms, size_t byte
 			t = wall_clock();
 
 			// correction numerator = den * p_k1 - num * q_k1
-			disk_mpz c_num(disk_mpz::cross_mul_sub("corr_num", frac.get_den(), cf_expansion.continuants.p_k1, frac.get_num(), cf_expansion.continuants.q_k1, bytes_per_file, nthreads));
+			disk_mpz c_num(disk_mpz::cross_mul_sub("corr_num", frac.get_den(), cf_expansion.continuants.p_k1, frac.get_num(), cf_expansion.continuants.q_k1, nthreads));
 			end_t = wall_clock() - t;
 			
-			std::cerr<< int(end_t) << "ms (" << (bytes_per_file * nfiles) / (1024. * 1.024 * end_t) << "MB/s)" << std::endl;
+			std::cerr<< int(end_t) << "ms (" << (disk_mpz::SplitSize * nfiles) / (1024. * 1.024 * end_t) << "MB/s)" << std::endl;
 
 			std::cerr << "denominator...\t";
 
 			t = wall_clock();
 			// correction denominator = num * q_k - den * p_k
-			disk_mpz c_den(disk_mpz::cross_mul_sub("corr_den", frac.get_num(), cf_expansion.continuants.q_k, frac.get_den(), cf_expansion.continuants.p_k, bytes_per_file, nthreads));
+			disk_mpz c_den(disk_mpz::cross_mul_sub("corr_den", frac.get_num(), cf_expansion.continuants.q_k, frac.get_den(), cf_expansion.continuants.p_k, nthreads));
 			end_t = wall_clock() - t;
 
-			std::cerr << int(end_t) << "ms (" << (bytes_per_file * nfiles) / (1024. * 1.024 * end_t) << "MB/s)" << std::endl;
+			std::cerr << int(end_t) << "ms (" << (disk_mpz::SplitSize * nfiles) / (1024. * 1.024 * end_t) << "MB/s)" << std::endl;
 
 			if (c_num.sign() < 0 && c_den.sign() < 0)
 			{

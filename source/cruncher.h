@@ -40,6 +40,6 @@ CFTermList reg_cf_expansion(const mpz_class& num, const mpz_class& den, bool cal
 int perform_corrections(mpz_class& num, mpz_class& den, CFTermList& c);
 
 void crunch_reg_cf_expansion(std::string file, size_t terms);
-void crunch_reg_cf_expansion_on_disk(std::string file, size_t terms, size_t bytes_per_file, size_t nthreads = 1);
+void crunch_reg_cf_expansion_on_disk(std::string file, size_t terms, size_t nthreads = 1);
 
 #endif

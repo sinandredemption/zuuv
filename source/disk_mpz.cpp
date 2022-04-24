@@ -7,15 +7,16 @@
 #include <thread>
 #include <filesystem>
 
+uint64_t disk_mpz::SplitSize;
 /*
   The default constructor
   Params: "name" = name of the fraction (used in disk i/o), "filename" = path to file containing
-  hex digits, "bytes_per_file" = terms_on_disk of each file
+  hex digits, "SplitSize" = terms_on_disk of each file
   Note that the constructor ignores the integer part of fraction, i.e. 3.14159... will be
   internally stored as 0.14159265...
 */
-disk_mpq::disk_mpq(std::string name, std::string filename, size_t bytes_per_file)
-  : num(name + "_num", bytes_per_file), den(name + "_den", bytes_per_file)
+disk_mpq::disk_mpq(std::string name, std::string filename)
+  : num(name + "_num"), den(name + "_den")
 {
   if (filename == "") { // Find files on disk
     size_t n = 0;
@@ -37,28 +38,28 @@ disk_mpq::disk_mpq(std::string name, std::string filename, size_t bytes_per_file
   std::ifstream inp(filename);
   if (!inp) throw "Couldn't open file '" + filename + "'";
 
-  // Jump to end of file... Read in reverse while < bytes_per_file digits left
+  // Jump to end of file... Read in reverse while < SplitSize digits left
   inp.seekg(0, std::ios::end);
 
-  char* buffer = new char[bytes_per_file * 2 + 1]; // Buffer to store the digits read
+  char* buffer = new char[disk_mpz::SplitSize * 2 + 1]; // Buffer to store the digits read
 
-  for (size_t n = 0; (size_t)inp.tellg() > bytes_per_file * 2 + 1; ++n) { // "bytes_per_file + 1" to ignore the dot
-    inp.seekg(-(int64_t)(bytes_per_file * 2), std::ios::cur);
+  for (size_t n = 0; (size_t)inp.tellg() > disk_mpz::SplitSize * 2 + 1; ++n) { // "SplitSize + 1" to ignore the dot
+    inp.seekg(-(int64_t)(disk_mpz::SplitSize * 2), std::ios::cur);
 
     // Read digits into buffer
-    inp.read(buffer, (bytes_per_file * 2));
-    buffer[bytes_per_file * 2] = '\0';
+    inp.read(buffer, (disk_mpz::SplitSize * 2));
+    buffer[disk_mpz::SplitSize * 2] = '\0';
 
     // Pushback the read digits
     num.pushback_digits(buffer);
     den.pushback_zero();
 
-    inp.seekg(-(int64_t)(bytes_per_file * 2), std::ios::cur);
+    inp.seekg(-(int64_t)(disk_mpz::SplitSize * 2), std::ios::cur);
   }
 
   // Read the remaining digits (the first few digits)
   if (inp.tellg() > 2) {  // Ignore the decimal point and anything before it
-    std::memset(buffer, 0, sizeof(char) * ((2 * bytes_per_file) + 1));
+    std::memset(buffer, 0, sizeof(char) * ((2 * disk_mpz::SplitSize) + 1));
 
     size_t offset = inp.tellg();
     inp.seekg(2, std::ios::beg);  // Ignore the decimal point...
@@ -85,7 +86,7 @@ void disk_mpz::canonicalize()
     pop_top();
 
   // Process carries
-  const mpz_class Base(mpz_class(1) << (8 * bytes_per_file));
+  const mpz_class Base(mpz_class(1) << (8 * disk_mpz::SplitSize));
   if (get_top_mpz() < 0)
   {
     set_neg();
@@ -146,8 +147,8 @@ void disk_mpz::mt_canonicalize()
     mpz_class m_j(mpz_at(j));
     m_j += carry;
 
-    mpz_tdiv_q_2exp(carry.get_mpz_t(), m_j.get_mpz_t(), 8 * bytes_per_file);
-    mpz_tdiv_r_2exp(m_j.get_mpz_t(), m_j.get_mpz_t(), 8 * bytes_per_file);
+    mpz_tdiv_q_2exp(carry.get_mpz_t(), m_j.get_mpz_t(), 8 * disk_mpz::SplitSize);
+    mpz_tdiv_r_2exp(m_j.get_mpz_t(), m_j.get_mpz_t(), 8 * disk_mpz::SplitSize);
 
     set_mpz(j, m_j);
   }
@@ -161,7 +162,7 @@ void disk_mpz::mt_canonicalize()
 // Multiply by m, and return result
 disk_mpz disk_mpz::mul(mpz_class m, std::string mul_name) const
 {
-    disk_mpz result(mul_name, bytes_per_file);
+    disk_mpz result(mul_name);
 
     if (m == 0) {
         result.pushback_zero();
@@ -177,10 +178,10 @@ disk_mpz disk_mpz::mul(mpz_class m, std::string mul_name) const
     mpz_class m2;
     multiplication::mul(m2.get_mpz_t(), read_mpz(digit_file).get_mpz_t(), m.get_mpz_t());
     m2 += carry;
-    // carry = m2 / 2 ^ (8 * bytes_per_file)
-    mpz_tdiv_q_2exp(carry.get_mpz_t(), m2.get_mpz_t(), 8 * bytes_per_file);
-    // m2 % 2 ^ (8 * bytes_per_file)
-    mpz_tdiv_r_2exp(m2.get_mpz_t(), m2.get_mpz_t(), 8 * bytes_per_file);
+    // carry = m2 / 2 ^ (8 * disk_mpz::SplitSize)
+    mpz_tdiv_q_2exp(carry.get_mpz_t(), m2.get_mpz_t(), 8 * disk_mpz::SplitSize);
+    // m2 % 2 ^ (8 * disk_mpz::SplitSize)
+    mpz_tdiv_r_2exp(m2.get_mpz_t(), m2.get_mpz_t(), 8 * disk_mpz::SplitSize);
 
     result.pushback_mpz(m2);
   }
@@ -193,15 +194,12 @@ disk_mpz disk_mpz::mul(mpz_class m, std::string mul_name) const
 
 disk_mpz disk_mpz::karatsuba_mul(std::string name, const disk_mpz& a, const disk_mpz& b)
 {
-    assert(a.bytes_per_file == b.bytes_per_file);
-    auto bytes_per_file = a.bytes_per_file;
-
     if (a.files() == 1) return b.mul(a.mpz_at(0), name);
     if (b.files() == 1) return a.mul(b.mpz_at(0), name);
 
     if (a.files() == 2 && b.files() == 2)
     {
-        disk_mpz res(name, bytes_per_file);
+        disk_mpz res(name);
         res.pushback_mpz(a.mpz_at(0) * b.mpz_at(0));
         res.pushback_mpz(a.mpz_at(1) * b.mpz_at(0) + b.mpz_at(1) * a.mpz_at(0));
         res.pushback_mpz(a.mpz_at(1) * b.mpz_at(1));
@@ -212,13 +210,13 @@ disk_mpz disk_mpz::karatsuba_mul(std::string name, const disk_mpz& a, const disk
     size_t end = std::max(a.files(), b.files());
 	size_t mid = end / 2;
 
-	disk_mpz x0(rand_filename(), bytes_per_file), y0(rand_filename(), bytes_per_file);
+	disk_mpz x0(rand_filename()), y0(rand_filename());
 	for (size_t i = 0; i < mid; ++i) {
 		x0.pushback_mpz(a.mpz_at(i));
 		y0.pushback_mpz(b.mpz_at(i));
 	}
 
-	disk_mpz x1(rand_filename(), bytes_per_file), y1(rand_filename(), bytes_per_file);
+	disk_mpz x1(rand_filename()), y1(rand_filename());
 	for (size_t i = mid; i < end; ++i) {
 		x1.pushback_mpz(a.mpz_at(i));
 		y1.pushback_mpz(b.mpz_at(i));
@@ -238,7 +236,7 @@ disk_mpz disk_mpz::karatsuba_mul(std::string name, const disk_mpz& a, const disk
 	disk_mpz_move(z1, z1.sub(z2));
 	disk_mpz_move(z1, z1.sub(z0));
 
-	disk_mpz result(name, bytes_per_file);
+	disk_mpz result(name);
 
 	// Recombine
 	for (int i = 0; i < a.files() + b.files(); ++i)
@@ -252,10 +250,9 @@ disk_mpz disk_mpz::karatsuba_mul(std::string name, const disk_mpz& a, const disk
 }
 
 disk_mpz disk_mpz::cross_mul_sub(std::string name,
-  const disk_mpz& a, const mpz_class& a1, const disk_mpz& b, const mpz_class& b1,
-  size_t bytes_per_file, size_t threads)
+  const disk_mpz& a, const mpz_class& a1, const disk_mpz& b, const mpz_class& b1, size_t threads)
 {
-  disk_mpz res(name, bytes_per_file);
+  disk_mpz res(name);
 
   mpz_class carry(0), m, tmp;
   for (size_t i = 0; i < std::max(a.files(), b.files()); ++i)
@@ -270,10 +267,10 @@ disk_mpz disk_mpz::cross_mul_sub(std::string name,
     multiplication::mul(tmp.get_mpz_t(), b.mpz_at(i).get_mpz_t(), b1.get_mpz_t(), threads);
     m -= tmp;
 
-    // carry = m / 2 ^ (8 * bytes_per_file)
-    //     m = m % 2 ^ (8 * bytes_per_file)
-    mpz_tdiv_q_2exp(carry.get_mpz_t(), m.get_mpz_t(), 8 * bytes_per_file);
-    mpz_tdiv_r_2exp(    m.get_mpz_t(), m.get_mpz_t(), 8 * bytes_per_file);
+    // carry = m / 2 ^ (8 * disk_mpz::SplitSize)
+    //     m = m % 2 ^ (8 * disk_mpz::SplitSize)
+    mpz_tdiv_q_2exp(carry.get_mpz_t(), m.get_mpz_t(), 8 * disk_mpz::SplitSize);
+    mpz_tdiv_r_2exp(    m.get_mpz_t(), m.get_mpz_t(), 8 * disk_mpz::SplitSize);
 
     res.pushback_mpz(m);
   }
@@ -291,14 +288,14 @@ disk_mpz disk_mpz::add(const disk_mpz& op, std::string name) const
     if (name == "")
         name = rand_filename();
 
-    disk_mpz result(name, bytes_per_file);
+    disk_mpz result(name);
 
   // Find the greater among two
     if (sign() < 0 || op.sign() < 0)
         assert(false);
 
   // Perform subtraction
-  const mpz_class Base(mpz_class(1) << (8 * bytes_per_file));
+  const mpz_class Base(mpz_class(1) << (8 * disk_mpz::SplitSize));
   bool carry = false;
 
   for (size_t j = 0; j < std::max(files(), op.files()); ++j)
@@ -327,7 +324,7 @@ disk_mpz disk_mpz::sub(const disk_mpz& s, std::string name) const
     if (name == "")
         name = rand_filename();
 
-  disk_mpz result(name, bytes_per_file);
+  disk_mpz result(name);
 
   // Find the greater among two
   const disk_mpz *greater = NULL, *lesser = NULL;
@@ -354,7 +351,7 @@ disk_mpz disk_mpz::sub(const disk_mpz& s, std::string name) const
   }
 
   // Perform subtraction
-  const mpz_class Base(mpz_class(1) << (8 * bytes_per_file));
+  const mpz_class Base(mpz_class(1) << (8 * disk_mpz::SplitSize));
   bool carry = false;
 
   for (size_t j = 0; j < std::max(files(), s.files()); ++j)
@@ -386,7 +383,7 @@ void disk_mpz::pushback_mpz(const mpz_class& mpz)
 
 void disk_mpz::set_mpz(size_t j, const mpz_class& mpz, bool update_file_list)
 {
-  assert(mpz_size(mpz.get_mpz_t()) < bytes_per_file * sizeof(mp_limb_t));
+  assert(mpz_size(mpz.get_mpz_t()) < disk_mpz::SplitSize * sizeof(mp_limb_t));
 
   std::string filename;
   if (j < digit_files.size())
@@ -452,7 +449,7 @@ mpz_class disk_mpz::get_top2_mpz() const
   if (files() == 1) return get_top_mpz();
 
   mpz_class out = get_top_mpz();
-  out <<= (8 * bytes_per_file);
+  out <<= (8 * disk_mpz::SplitSize);
   out |= mpz_at(digit_files.size() - 2);
 
   return out;
@@ -463,7 +460,7 @@ mpz_class disk_mpz::to_mpz() const
   mpz_class out(0);
 
   for (size_t i = 0; i < files(); ++i)
-    out += mpz_at(i) << (8 * bytes_per_file * i);
+    out += mpz_at(i) << (8 * disk_mpz::SplitSize * i);
 
   return sgn < 0 ? -out : out;
 }
@@ -473,7 +470,7 @@ mpz_class disk_mpz::value() const
   mpz_class out(0);
 
   for (size_t i = 0; i < files(); ++i)
-    out += mpz_at(i) << (8 * bytes_per_file * i);
+    out += mpz_at(i) << (8 * disk_mpz::SplitSize * i);
 
   return out;
 }

@@ -10,18 +10,18 @@
 
 /*
   An disk_mpz is represented by a vector of files (vector<string> digit_files, where the string
-  holds the path to file containing an mpz dump of the digits), with "bytes_per_file" number of
+  holds the path to file containing an mpz dump of the digits), with "SplitSize" number of
   digits per file. It evaluates to:
-  digit_file[0] * 2^(bytes_per_file*0) + digit_file[1] * 2^(bytes_per_file*1) + ...
+  digit_file[0] * 2^(SplitSize*0) + digit_file[1] * 2^(SplitSize*1) + ...
 */
 class disk_mpz
 {
   std::vector<std::string> digit_files;
   std::string name;
-  size_t bytes_per_file;
   int sgn;
 
 public:
+  static uint64_t SplitSize;
   const char* SubDir = "disk_mpz/";
 
   void pushback_mpz(const mpz_class& mpz);
@@ -29,7 +29,7 @@ public:
 
   // Pushback digits from buffer continaing hex string of digits into a NEW file
   void pushback_digits(char *buffer);
-  void pushback_zero(); // Pushback new file containing zero x bytes_per_file
+  void pushback_zero(); // Pushback new file containing zero
   void pushback_file(std::string filename);
 
   void canonicalize();  // Truncate leading zereos and process boolean carries
@@ -40,8 +40,7 @@ public:
   
   // Compute a * a1 - b * b1
   static disk_mpz cross_mul_sub(std::string name,
-    const disk_mpz& a, const mpz_class& a1, const disk_mpz& b, const mpz_class& b1,
-    size_t bytes_per_file, size_t threads = 0);
+    const disk_mpz& a, const mpz_class& a1, const disk_mpz& b, const mpz_class& b1, size_t threads = 0);
   static disk_mpz mul(std::string name, const disk_mpz& a, const disk_mpz& b, size_t idx_start = 0, size_t idx_end = 0);
   static disk_mpz karatsuba_mul(std::string name, const disk_mpz& a, const disk_mpz& b);
 
@@ -61,8 +60,8 @@ public:
 
   void destroy() { while (digit_files.size()) pop_top(); }
 
-  disk_mpz(std::string name_, size_t bytes_per_file_)
-    : name(name_), bytes_per_file(bytes_per_file_), sgn(0) {}
+  disk_mpz(std::string name_)
+    : name(name_), sgn(0) {}
   ~disk_mpz();
 
   // --- Helper functions ---
@@ -92,7 +91,7 @@ class disk_mpq
 {
   disk_mpz num, den;
 public:
-  disk_mpq(std::string, std::string, size_t); // Name, file, digits per file
+  disk_mpq(std::string, std::string); // Name, file, digits per file
 
   disk_mpz& get_num() { return num; }
   const disk_mpz& get_num() const { return num; }

@@ -187,6 +187,7 @@
     <ClCompile Include="io.cpp" />
     <ClCompile Include="mul.cpp" />
     <ClCompile Include="utils.cpp" />
+    <ClCompile Include="verification.cpp" />
     <ClCompile Include="zuuv.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -198,6 +199,7 @@
     <ClInclude Include="mul.h" />
     <ClInclude Include="params.h" />
     <ClInclude Include="utils.h" />
+    <ClInclude Include="verification.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

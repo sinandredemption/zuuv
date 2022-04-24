@@ -1,6 +1,7 @@
 #include "cruncher.h"
 #include "benchmark.h"
 #include "utils.h"
+#include "disk_mpz.h"
 #include <iostream>
 #include <thread>
 #include <fstream>
@@ -17,6 +18,9 @@ int main()
 
 	std::filesystem::create_directory("iterations");
 	std::filesystem::create_directory("disk_mpz");
+	disk_mpz::SplitSize = 1 + 1e6 * (getTotalSystemMemoryMB() - 466) / 5500;
+
+	std::cout << "Bytes Per File: " << disk_mpz::SplitSize << " (" << disk_mpz::SplitSize / (1024 * 1024) << "MB)" << std::endl;
 
 prompt:
 	std::cout << "---" << std::endl << std::endl;
@@ -65,7 +69,6 @@ prompt:
 			std::cout << "Choose: ";
 			std::cin >> ram_based;
 
-			size_t bytes_per_file = 0;
 			if (ram_based == 2)
 			{
 				double file_size = 0;
@@ -85,7 +88,7 @@ prompt:
 
 				std::cout << "\nFraction split size (in MBs): ";
 				std::cin >> file_size;
-				bytes_per_file = file_size * 1024. * 1024. + 1;
+				disk_mpz::SplitSize = file_size * 1024. * 1024. + 1;
 			}
 
 			std::string file = "";
@@ -98,9 +101,9 @@ prompt:
 				std::cin >> file;
 			}
 
-			if (bytes_per_file > 0)
+			if (disk_mpz::SplitSize > 0)
 			{
-				std::cout << "Estimated Peak RAM usage = " << peak_ram_usage(bytes_per_file / (1024. * 1024.)) << "MB" << std::endl;
+				std::cout << "Estimated Peak RAM usage = " << peak_ram_usage(disk_mpz::SplitSize / (1024. * 1024.)) << "MB" << std::endl;
 
 				std::cout << "Are you sure you want to start a computation (y/n): ";
 
@@ -109,13 +112,13 @@ prompt:
 				if (c == 'y')
 				{
 					std::ofstream options("zuuv.txt");
-					options << bytes_per_file << std::endl;
+					options << disk_mpz::SplitSize << std::endl;
 					options << terms << std::endl;
 					options.close();
 
 					size_t nthreads = std::thread::hardware_concurrency();
 
-					crunch_reg_cf_expansion_on_disk(file, terms, bytes_per_file, nthreads);
+					crunch_reg_cf_expansion_on_disk(file, terms, nthreads);
 				}
 			}
 			else crunch_reg_cf_expansion(file, terms);
@@ -125,14 +128,14 @@ prompt:
 
 		case 2:
 		{
-			size_t bytes_per_file, terms, nthreads = std::thread::hardware_concurrency() / 2;
+			size_t terms, nthreads = std::thread::hardware_concurrency() / 2;
 
 			std::ifstream options("zuuv.txt");
 			if (!options.good()) throw "Can't load options from file 'zuuv.txt'";
-			options >> bytes_per_file >> terms;
+			options >> disk_mpz::SplitSize >> terms;
 			options.close();
 
-			crunch_reg_cf_expansion_on_disk("", terms, bytes_per_file, nthreads);
+			crunch_reg_cf_expansion_on_disk("", terms, nthreads);
 
 			break;
 		}

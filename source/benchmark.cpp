@@ -206,7 +206,6 @@ void benchmark_continuant() {
 void benchmark_disk_mul() {
   multiplication::init();
 
-  size_t bytes_per_file = 0;
   size_t nfiles = 0;
   size_t threads = 0;
   size_t iters = 0;
@@ -223,10 +222,10 @@ void benchmark_disk_mul() {
     std::cout << "# of files: ";
     std::cin >> nfiles;
   }
-  while (bytes_per_file < 1024 * 1024) {
+  while (disk_mpz::SplitSize < 1024 * 1024) {
     std::cout << "file size (MBs): ";
-    std::cin >> bytes_per_file;
-    bytes_per_file *= 1024 * 1024;
+    std::cin >> disk_mpz::SplitSize;
+    disk_mpz::SplitSize *= 1024 * 1024;
   }
   while (threads == 0) {
     std::cout << "# of threads to use: ";
@@ -258,11 +257,11 @@ void benchmark_disk_mul() {
     std::cout << "Iteration " << i << "/" << iters << "...";
 
     if (mul_type == SIMPLE_MULTIPLICATION) {
-        disk_mpz x("x", bytes_per_file), y("y", bytes_per_file);
+        disk_mpz x("x"), y("y");
 
         for (size_t i = 0; i < nfiles; ++i) {
-            x.pushback_mpz(mpz_rand(bytes_per_file));
-            y.pushback_mpz(mpz_rand(bytes_per_file));
+            x.pushback_mpz(mpz_rand(disk_mpz::SplitSize));
+            y.pushback_mpz(mpz_rand(disk_mpz::SplitSize));
         }
 
         double start = wall_clock();
@@ -271,7 +270,7 @@ void benchmark_disk_mul() {
 
         total_time += end;
         std::cout << "\n" << end << "ms | " <<
-            (nfiles * 2. * bytes_per_file * 1000.) / (end * 1024. * 1024.) << "MB/s" << std::endl;
+            (nfiles * 2. * disk_mpz::SplitSize * 1000.) / (end * 1024. * 1024.) << "MB/s" << std::endl;
 
         if (verify) {
             if (res.to_mpz() != x.to_mpz() * y.to_mpz()) {
@@ -289,23 +288,23 @@ void benchmark_disk_mul() {
         std::cout << std::endl;
     }
     else {
-        disk_mpq frac("bench", "", bytes_per_file);
+        disk_mpq frac("bench", "");
 
         mpz_class mpz_num, mpz_den;
         for (size_t i = 0; i < nfiles; ++i) {
-            frac.get_den().pushback_mpz(mpz_rand(bytes_per_file));
-            frac.get_num().pushback_mpz(mpz_rand(bytes_per_file));
+            frac.get_den().pushback_mpz(mpz_rand(disk_mpz::SplitSize));
+            frac.get_num().pushback_mpz(mpz_rand(disk_mpz::SplitSize));
         }
 
-        mpz_class a = mpz_rand(bytes_per_file), b = mpz_rand(bytes_per_file);
+        mpz_class a = mpz_rand(disk_mpz::SplitSize), b = mpz_rand(disk_mpz::SplitSize);
 
         double start = wall_clock();
-        disk_mpz res(disk_mpz::cross_mul_sub("bench_result", frac.get_num(), a, frac.get_den(), b, bytes_per_file, threads));
+        disk_mpz res(disk_mpz::cross_mul_sub("bench_result", frac.get_num(), a, frac.get_den(), b, threads));
         double end = wall_clock() - start;
 
         total_time += end;
         std::cout << "\n" << end << "ms | " <<
-            (nfiles * 2. * bytes_per_file * 1000.) / (end * 1024. * 1024.) << "MB/s" << std::endl;
+            (nfiles * 2. * disk_mpz::SplitSize * 1000.) / (end * 1024. * 1024.) << "MB/s" << std::endl;
 
         std::cout << std::endl;
 
@@ -322,7 +321,7 @@ void benchmark_disk_mul() {
     }
   }
 
-  std::cout << "average = " << (iters * nfiles * 2. * bytes_per_file * 1000.) / (total_time * 1024. * 1024.) << "MB/s" << std::endl;
+  std::cout << "average = " << (iters * nfiles * 2. * disk_mpz::SplitSize * 1000.) / (total_time * 1024. * 1024.) << "MB/s" << std::endl;
 }
 
 int benchmark_ram_mul() {
@@ -458,7 +457,7 @@ void benchmark_estimate_time() {
 
     const int Repititions = 3;
     const int DefaultFractionSize1 = 1 * 1024 * 1024; // 1MB
-    const int DefaultFractionSize2 = 10 * 1024 * 1024; // 1MB
+    const int DefaultFractionSize2 = 10 * 1024 * 1024; // 10MB
     double average_time = 0, estimated_time = 0, estimated_time1, estimated_time2;
 
     for (int i = 0; i < Repititions; ++i)
@@ -484,8 +483,10 @@ void benchmark_estimate_time() {
     average_time = 0;
 
     std::cout << "Estimating time required for cross-multiplication...";
+    auto tmp = disk_mpz::SplitSize;
+    disk_mpz::SplitSize = DefaultFractionSize2;
     for (int i = 0; i < Repititions; ++i) {
-      disk_mpq frac("bench", "", DefaultFractionSize2);
+      disk_mpq frac("bench", "");
 
       for (size_t j = 0; j < 5; ++j) {
         frac.get_den().pushback_mpz(mpz_rand(DefaultFractionSize2));
@@ -503,6 +504,8 @@ void benchmark_estimate_time() {
 
       frac.destroy();
     }
+
+    disk_mpz::SplitSize = tmp;
 
     average_time /= Repititions;
 
